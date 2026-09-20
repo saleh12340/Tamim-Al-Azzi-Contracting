@@ -74,18 +74,30 @@ public class MainActivity extends Activity {
 
     GradientDrawable rounded(int color,float radius){ GradientDrawable g=new GradientDrawable(); g.setColor(color); g.setCornerRadius(radius); return g; }
     GradientDrawable outlined(int color,int stroke,float radius){ GradientDrawable g=rounded(color,radius); g.setStroke(stroke,Color.rgb(224,230,225)); return g; }
-    float fitText(float z){return Math.max(10f,Math.min(z,16f));}
+    float fitText(float z){return Math.max(9f,Math.min(z,16f));}
+    void fitInside(View v,float maxSp,float minSp){
+        if(v instanceof TextView){
+            TextView t=(TextView)v;
+            t.setIncludeFontPadding(true);
+            t.setHorizontallyScrolling(false);
+            t.setEllipsize(null);
+            t.setBreakStrategy(android.text.Layout.BREAK_STRATEGY_HIGH_QUALITY);
+            if(android.os.Build.VERSION.SDK_INT>=26){
+                t.setAutoSizeTextTypeUniformWithConfiguration(dp((int)minSp),dp((int)maxSp),1,android.util.TypedValue.COMPLEX_UNIT_PX);
+            }
+        }
+    }
     TextView tv(String s,float z){
         TextView v=new TextView(this); v.setText(s); v.setTextSize(fitText(z)); v.setTextColor(TEXT);
         v.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL); v.setPadding(dp(6),dp(2),dp(6),dp(2));
-        v.setIncludeFontPadding(true);
-        v.setLayoutDirection(View.LAYOUT_DIRECTION_RTL); v.setTextDirection(View.TEXT_DIRECTION_RTL); return v;
+        v.setLayoutDirection(View.LAYOUT_DIRECTION_RTL); v.setTextDirection(View.TEXT_DIRECTION_RTL);
+        fitInside(v,fitText(z),8f); return v;
     }
     Button button(String s){
-        Button b=new Button(this); b.setText(s); b.setTextSize(11); b.setAllCaps(false); b.setMinHeight(0);
+        Button b=new Button(this); b.setText(s); b.setTextSize(fitText(11)); b.setAllCaps(false); b.setMinHeight(0);
         b.setMinimumHeight(0); b.setPadding(dp(5),dp(0),dp(5),dp(0)); b.setGravity(Gravity.CENTER); b.setStateListAnimator(null);
-        b.setIncludeFontPadding(true); b.setMaxLines(2); b.setEllipsize(TextUtils.TruncateAt.END);
-        b.setLayoutDirection(View.LAYOUT_DIRECTION_RTL); return b;
+        b.setIncludeFontPadding(true); b.setMaxLines(3); b.setEllipsize(null);
+        b.setLayoutDirection(View.LAYOUT_DIRECTION_RTL); fitInside(b,12f,8f); return b;
     }
     EditText field(String h){
         EditText e=new EditText(this); e.setHint(h); e.setTextSize(13); e.setSingleLine(true);
@@ -109,7 +121,7 @@ public class MainActivity extends Activity {
     }
     void addField(EditText e){content.addView(e,new LinearLayout.LayoutParams(-1,dp(38))); addSpace(2);}
     void addSpace(int h){Space s=new Space(this); content.addView(s,new LinearLayout.LayoutParams(1,dp(h)));}
-    TextView section(String s){TextView v=tv(s,11);v.setTextColor(GREEN);v.setTypeface(Typeface.DEFAULT,Typeface.BOLD);v.setSingleLine(true);v.setEllipsize(TextUtils.TruncateAt.END);v.setPadding(dp(3),dp(4),dp(3),dp(2));content.addView(v,new LinearLayout.LayoutParams(-1,dp(26)));return v;}
+    TextView section(String s){TextView v=tv(s,11);v.setTextColor(GREEN);v.setTypeface(Typeface.DEFAULT,Typeface.BOLD);v.setSingleLine(false);v.setMaxLines(2);v.setEllipsize(null);v.setPadding(dp(3),dp(4),dp(3),dp(2));content.addView(v,new LinearLayout.LayoutParams(-1,dp(26)));return v;}
 
     void base(String title){
         if(!title.equals(currentPage)){
@@ -128,7 +140,7 @@ public class MainActivity extends Activity {
         bar.addView(pt,new LinearLayout.LayoutParams(dp(105),dp(40))); root.addView(bar);
         ScrollView sv=new ScrollView(this); sv.setFillViewport(true); sv.setClipToPadding(false);
         content=new LinearLayout(this); content.setOrientation(LinearLayout.VERTICAL); content.setPadding(dp(5),dp(4),dp(5),dp(8)); content.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-        TextView operationChip=tv("العملية الحالية: "+title,10); operationChip.setTextColor(GREEN); operationChip.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL); operationChip.setSingleLine(true); operationChip.setEllipsize(TextUtils.TruncateAt.END); operationChip.setPadding(dp(8),0,dp(8),0); operationChip.setBackground(outline(Color.rgb(241,247,242),8)); content.addView(operationChip,new LinearLayout.LayoutParams(-1,dp(24))); addSpace(2);
+        TextView operationChip=tv("العملية الحالية: "+title,10); operationChip.setTextColor(GREEN); operationChip.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL); operationChip.setSingleLine(false); operationChip.setMaxLines(2); operationChip.setEllipsize(null); operationChip.setPadding(dp(8),0,dp(8),0); operationChip.setBackground(outline(Color.rgb(241,247,242),8)); content.addView(operationChip,new LinearLayout.LayoutParams(-1,dp(24))); addSpace(2);
         sv.addView(content); root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));
         setContentView(root);
     }
@@ -426,7 +438,7 @@ public class MainActivity extends Activity {
         float[] w={1.0f,.72f,1.35f,.9f,.55f};
         TextView total=tv(fmt(l.total),13);total.setGravity(Gravity.CENTER);total.setSingleLine(true);
         TextView qty=tv(fmt(l.qty),13);qty.setGravity(Gravity.CENTER);qty.setSingleLine(true);
-        TextView item=tv(l.name,12);item.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);item.setMaxLines(2);item.setEllipsize(TextUtils.TruncateAt.END);
+        TextView item=tv(l.name,12);item.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);item.setMaxLines(3);item.setEllipsize(null);
         TextView unit=tv(fmt(l.total/l.qty),12);unit.setTextColor(MUTED);unit.setGravity(Gravity.CENTER);unit.setSingleLine(true);
         Button del=button("حذف");del.setTextSize(10);del.setTextColor(Color.RED);del.setBackgroundColor(Color.TRANSPARENT); qty.setContentDescription("تعديل كمية الصنف"); qty.setBackground(outline(Color.rgb(248,250,248),6));
         View[] cells={total,qty,item,unit,del};for(int i=0;i<cells.length;i++)r.addView(cells[i],new LinearLayout.LayoutParams(0,dp(36),w[i]));
@@ -542,7 +554,7 @@ public class MainActivity extends Activity {
             long id=c.getLong(0); String no=c.getString(1),cn=c.getString(2),date=c.getString(4); double total=c.getDouble(3);
             LinearLayout r=card(); r.setPadding(dp(7),dp(3),dp(7),dp(3));
             TextView info=tv("فاتورة "+no+"  •  "+(cn==null||cn.isEmpty()?"نقدي":cn)+"  •  "+fmt(total)+" ريال\n"+date,12);
-            info.setMaxLines(2); info.setEllipsize(TextUtils.TruncateAt.END); info.setIncludeFontPadding(true);
+            info.setMaxLines(3); info.setEllipsize(null); info.setIncludeFontPadding(true);
             r.addView(info,new LinearLayout.LayoutParams(-1,dp(42)));
             r.setOnClickListener(v->showInvoiceDialog(id,no,cn,total,date));
             LinearLayout a=new LinearLayout(this); a.setOrientation(LinearLayout.HORIZONTAL);
@@ -805,7 +817,7 @@ public class MainActivity extends Activity {
                 TextView amtV=tv((type==1?"عليه: ":"له: ")+fmt(a)+" ريال",13);amtV.setTextColor(type==1?Color.rgb(190,55,45):GREEN);r.addView(amtV,new LinearLayout.LayoutParams(-1,dp(28)));
                 TextView balV=tv("الرصيد بعد العملية: "+balanceText(runningAfter),11);balV.setTextColor(GREEN);r.addView(balV,new LinearLayout.LayoutParams(-1,dp(28)));
                 String invNo=db.invoiceNoFromTransaction(d);
-                if(!TextUtils.isEmpty(invNo)){TextView iv=tv(db.invoiceCompactDetails(invNo),10);iv.setTextColor(MUTED);iv.setMaxLines(3);iv.setEllipsize(TextUtils.TruncateAt.END);r.addView(iv,new LinearLayout.LayoutParams(-1,dp(44)));}
+                if(!TextUtils.isEmpty(invNo)){TextView iv=tv(db.invoiceCompactDetails(invNo),10);iv.setTextColor(MUTED);iv.setMaxLines(4);iv.setEllipsize(null);r.addView(iv,new LinearLayout.LayoutParams(-1,dp(44)));}
                 check.setOnCheckedChangeListener((b,is)->{if(is){if(!selected.contains(tid))selected.add(tid);}else selected.remove(tid);});
                 r.setOnClickListener(v->showOperationDetails(customerName,tid,d,a,type));
                 r.setOnLongClickListener(v->{operationActions(id,name,tid,d,a,type);return true;});
@@ -1054,7 +1066,7 @@ public class MainActivity extends Activity {
             while(c.moveToNext()){
                 String title=c.getString(2),date=c.getString(4);double amount=c.getDouble(3);
                 LinearLayout r=card(); r.setPadding(dp(8),dp(3),dp(8),dp(3));
-                TextView v=tv(title+"\n"+fmt(amount)+" ريال  •  "+(date==null?"":date),11);v.setMaxLines(2);v.setEllipsize(TextUtils.TruncateAt.END);
+                TextView v=tv(title+"\n"+fmt(amount)+" ريال  •  "+(date==null?"":date),11);v.setMaxLines(3);v.setEllipsize(null);
                 r.addView(v,new LinearLayout.LayoutParams(-1,dp(46)));content.addView(r,new LinearLayout.LayoutParams(-1,dp(52)));addSpace(2);
             }
             c.close();
