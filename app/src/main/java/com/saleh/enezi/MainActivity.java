@@ -201,6 +201,7 @@ public class MainActivity extends Activity {
             content.addView(row,new LinearLayout.LayoutParams(-1,dp(66))); addSpace(5);
         }
 
+        Button backup=button("💾 النسخ الاحتياطي والاسترجاع");backup.setTextColor(GREEN);backup.setTextSize(12);backup.setOnClickListener(v->showBackupRestore());content.addView(backup,new LinearLayout.LayoutParams(-1,dp(38)));addSpace(5);
         Button general=button("＋  إضافة عملية"); general.setTextColor(GREEN); general.setTextSize(12); general.setMaxLines(1); general.setGravity(Gravity.CENTER); general.setBackground(outline(CARD,12)); fitInside(general,12f,9f);
         general.setOnClickListener(v->showGeneralActions()); content.addView(general,new LinearLayout.LayoutParams(-1,dp(36))); addSpace(5);
     }
