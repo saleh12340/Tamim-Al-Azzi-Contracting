@@ -382,6 +382,24 @@ public class MainActivity extends Activity {
     void invoiceHistory(){base("الفواتير");section("سجل الفواتير");Cursor c=db.invoices();while(c.moveToNext()){long id=c.getLong(0);String no=c.getString(1),cn=c.getString(2),date=c.getString(3);double total=c.getDouble(4);LinearLayout r=card();r.addView(tv("فاتورة "+no+"\n"+(cn==null||cn.isEmpty()?"نقدي":cn)+"   •   "+fmt(total)+" ريال\n"+date,14));LinearLayout a=new LinearLayout(this);Button edit=button("تعديل"),del=button("حذف");edit.setTextColor(GREEN);del.setTextColor(Color.RED);a.addView(edit,new LinearLayout.LayoutParams(0,46,1));a.addView(del,new LinearLayout.LayoutParams(0,46,1));r.addView(a);edit.setOnClickListener(v->invoice(true,id));del.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("حذف الفاتورة؟").setMessage("سيتم حذف الفاتورة وحركتها من حساب العميل.").setPositiveButton("حذف",(d,w)->{db.deleteInvoice(id);invoiceHistory();}).setNegativeButton("إلغاء",null).show());addCard(r,128);}c.close();}
     String receiptText(String no,String customer,LinearLayout rows,double total,long cid){StringBuilder s=new StringBuilder("بقالة العزي\nفاتورة رقم: ").append(no).append("\nالتاريخ: ").append(db.now()).append("\n");if(!customer.isEmpty())s.append("العميل: ").append(customer).append("\n");s.append("------------------------------\n");for(int i=0;i<rows.getChildCount();i++){View ch=rows.getChildAt(i);if(ch instanceof LinearLayout){LinearLayout r=(LinearLayout)ch;StringBuilder q=new StringBuilder();for(int j=0;j<r.getChildCount();j++){View x=r.getChildAt(j);if(x instanceof TextView){String z=((TextView)x).getText().toString().trim();if(!z.isEmpty()){if(q.length()>0)q.append(" | ");q.append(z);}}}if(q.length()>0)s.append(q).append("\n");}}s.append("------------------------------\nالإجمالي: ").append(fmt(total)).append(" ريال\n");if(cid>0)s.append(balanceText(db.balance(cid))).append("\n");s.append("شكراً لتعاملكم معنا");return s.toString();}
     String balanceText(double b){return b>0?"رصيد العميل عليه: "+fmt(b)+" ريال":b<0?"رصيد العميل له: "+fmt(Math.abs(b))+" ريال":"رصيد العميل: 0 ريال";}
+    void shareAccountPdfToWhatsApp(long id,String name){
+        try{
+            String pdfText=statement(id,name);
+            File dir=new File(getCacheDir(),"statements"); if(!dir.exists())dir.mkdirs();
+            File file=new File(dir,"statement_"+id+"_"+System.currentTimeMillis()+".pdf");
+            android.graphics.pdf.PdfDocument pdf=new android.graphics.pdf.PdfDocument();
+            android.graphics.pdf.PdfDocument.PageInfo info=new android.graphics.pdf.PdfDocument.PageInfo.Builder(595,842,1).create();
+            android.graphics.pdf.PdfDocument.Page page=pdf.startPage(info);
+            Canvas canvas=page.getCanvas(); Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG); paint.setColor(Color.BLACK); paint.setTextSize(dp(13));
+            int y=dp(36); String[] ls=pdfText.split("\\n");
+            for(String line:ls){ if(y>800){pdf.finishPage(page);info=new android.graphics.pdf.PdfDocument.PageInfo.Builder(595,842,pdf.getPages().size()+1).create();page=pdf.startPage(info);canvas=page.getCanvas();y=dp(36);} canvas.drawText(new StringBuilder(line).reverse().toString(),575,y,paint); y+=dp(22);}
+            pdf.finishPage(page); FileOutputStream out=new FileOutputStream(file);pdf.writeTo(out);out.close();pdf.close();
+            Uri uri=FileProvider.getUriForFile(this,getPackageName()+".fileprovider",file);
+            String phone=db.phoneByName(name); Intent i=new Intent(Intent.ACTION_SEND);i.setType("application/pdf");i.putExtra(Intent.EXTRA_STREAM,uri);i.putExtra(Intent.EXTRA_TEXT,"كشف حساب العميل: "+name);i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            String p=phone==null?"":phone.replaceAll("[^0-9+]","");if(!p.isEmpty())i.putExtra("jid",p.replace("+","")+"@s.whatsapp.net");
+            try{i.setPackage("com.whatsapp");startActivity(i);}catch(Exception e){i.setPackage(null);startActivity(Intent.createChooser(i,"إرسال كشف الحساب"));}
+        }catch(Exception e){Toast.makeText(this,"تعذر إنشاء ملف PDF",Toast.LENGTH_LONG).show();}
+    }
     void shareText(String s){Intent i=new Intent(Intent.ACTION_SEND);i.setType("text/plain");i.putExtra(Intent.EXTRA_TEXT,s);startActivity(Intent.createChooser(i,"إرسال الفاتورة"));}
     void shareWhatsAppToCustomer(String phone,String text,Uri image){
         String p=phone==null?"":phone.replaceAll("[^0-9+]","");
