@@ -83,7 +83,7 @@ public class MainActivity extends Activity {
             t.setEllipsize(null);
             t.setBreakStrategy(android.text.Layout.BREAK_STRATEGY_HIGH_QUALITY);
             if(android.os.Build.VERSION.SDK_INT>=26){
-                t.setAutoSizeTextTypeUniformWithConfiguration(dp((int)minSp),dp((int)maxSp),1,android.util.TypedValue.COMPLEX_UNIT_PX);
+                t.setAutoSizeTextTypeUniformWithConfiguration(minSp,maxSp,1,android.util.TypedValue.COMPLEX_UNIT_SP);
             }
         }
     }
@@ -280,7 +280,7 @@ public class MainActivity extends Activity {
         entry.addView(line);
         Button add=action("＋  إضافة الصنف / التعامل",GREEN);
         entry.addView(add,new LinearLayout.LayoutParams(-1,dp(42)));
-        addCard(entry,130);
+        addCard(entry,116);
 
         section("صندوق عرض الفاتورة");
         LinearLayout invoiceBox=card();
@@ -312,7 +312,7 @@ public class MainActivity extends Activity {
         rows.setOrientation(LinearLayout.VERTICAL);
         rows.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
         tableScroll.addView(rows,new ViewGroup.LayoutParams(-1,-2));
-        table.addView(tableScroll,new LinearLayout.LayoutParams(-1,dp(248))); invoiceBox.addView(table,new LinearLayout.LayoutParams(-1,-2));
+        table.addView(tableScroll,new LinearLayout.LayoutParams(-1,dp(190))); invoiceBox.addView(table,new LinearLayout.LayoutParams(-1,-2));
 
         TextView boxTotal=tv("الإجمالي: 0 ريال",20);
         boxTotal.setTextColor(GREEN); boxTotal.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
@@ -320,9 +320,15 @@ public class MainActivity extends Activity {
         boxTotal.setPadding(dp(10),dp(4),dp(10),dp(4));
         boxTotal.setBackground(bg(Color.rgb(255,249,226),12));
         invoiceBox.addView(boxTotal,new LinearLayout.LayoutParams(-1,dp(48)));
+        LinearLayout paidRow=new LinearLayout(this); paidRow.setOrientation(LinearLayout.HORIZONTAL); paidRow.setLayoutDirection(View.LAYOUT_DIRECTION_RTL); paidRow.setGravity(Gravity.CENTER_VERTICAL);
+        TextView paidTitle=tv("المبلغ المدفوع",12); paidTitle.setTextColor(MUTED); paidTitle.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
+        EditText paid=numberField("0"); paid.setText("0"); paid.setTextSize(13); paid.setSelectAllOnFocus(true);
+        paidRow.addView(paidTitle,new LinearLayout.LayoutParams(0,dp(38),1));
+        paidRow.addView(paid,new LinearLayout.LayoutParams(dp(125),dp(38)));
+        invoiceBox.addView(paidRow,new LinearLayout.LayoutParams(-1,dp(40)));
         TextView remainingLabel=tv("المتبقي: 0 ريال",12);remainingLabel.setTextColor(MUTED);remainingLabel.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);remainingLabel.setPadding(dp(10),0,dp(10),0);
-        invoiceBox.addView(remainingLabel,new LinearLayout.LayoutParams(-1,dp(30)));
-        content.addView(invoiceBox,new LinearLayout.LayoutParams(-1,-2)); space(5);
+        invoiceBox.addView(remainingLabel,new LinearLayout.LayoutParams(-1,dp(28)));
+        content.addView(invoiceBox,new LinearLayout.LayoutParams(-1,-2)); space(3);
 
         final ArrayList<Line> lines=new ArrayList<>();
         if(edit){Cursor c=db.invoiceLines(invoiceId);while(c.moveToNext())lines.add(new Line(c.getString(1),c.getDouble(2),c.getDouble(3)));c.close();}
@@ -333,7 +339,9 @@ public class MainActivity extends Activity {
             for(Line l:lines){run+=l.total;addRow(rows,l,run,baseBal,lines);}
             boxTotal.setText("الإجمالي: "+fmt(run)+" ريال");
             double currentBalance=customer.getText().toString().trim().isEmpty()?0:db.balanceByName(customer.getText().toString().trim());
-            double remaining=currentBalance+run;if(Math.abs(remaining)<0.005)remaining=0;
+            double paidNow=0; try{paidNow=Double.parseDouble(paid.getText().toString().trim());}catch(Exception ignored){}
+            if(paidNow<0)paidNow=0;
+            double remaining=currentBalance+run-paidNow;if(Math.abs(remaining)<0.005)remaining=0;
             remainingLabel.setText("المتبقي: "+fmt(remaining)+" ريال");
         };
 
@@ -359,41 +367,49 @@ public class MainActivity extends Activity {
         Button save=action(edit?"💾  حفظ التعديل":"💾  حفظ الفاتورة",GREEN);
         content.addView(save,new LinearLayout.LayoutParams(-1,dp(36)));addSpace(6);
         Button print=btn("🖨  طباعة مباشرة — بلوتوث 58mm");print.setTextColor(GREEN);        content.addView(print,new LinearLayout.LayoutParams(-1,dp(38))); addSpace(5);
-        LinearLayout invoiceBottom=new LinearLayout(this);invoiceBottom.setOrientation(LinearLayout.HORIZONTAL);
-        Button cancel=button(edit?"↩ إلغاء التعديل":"↩ إلغاء العملية");cancel.setTextColor(Color.RED);cancel.setBackground(outline(CARD,10));
-        Button homeBtn=button("⌂ الرجوع للرئيسية");homeBtn.setTextColor(GREEN);homeBtn.setBackground(outline(CARD,10));
-        invoiceBottom.addView(cancel,new LinearLayout.LayoutParams(0,dp(40),1));invoiceBottom.addView(homeBtn,new LinearLayout.LayoutParams(0,dp(40),1));content.addView(invoiceBottom);
-        cancel.setOnClickListener(v->invoiceHistory());homeBtn.setOnClickListener(v->home());
+        
 
         save.setOnClickListener(v->{
             if(lines.isEmpty()){Toast.makeText(this,"أضف صنفاً واحداً على الأقل",Toast.LENGTH_SHORT).show();return;}
             String cn=customer.getText().toString().trim();
             if(cn.isEmpty()){Toast.makeText(this,"اكتب اسم العميل، أو اتركه للفاتورة النقدية",Toast.LENGTH_SHORT).show();return;}
-            showPhoneDialog(cn,no.getText().toString(),lines,totalOf(lines),edit,invoiceId);
+            String knownPhone=db.phoneByName(cn).trim();
+            if(!knownPhone.isEmpty()) saveInvoice(cn,no.getText().toString(),lines,totalOf(lines),parsePaid(paid),knownPhone,edit,invoiceId);
+            else showPhoneDialog(cn,no.getText().toString(),lines,totalOf(lines),parsePaid(paid),edit,invoiceId);
         });
         print.setOnClickListener(v->preview(no.getText().toString(),customer.getText().toString(),lines,totalOf(lines),edit,invoiceId));
         item.setOnEditorActionListener((v,a,e)->{add.performClick();return true;});
         customer.addTextChangedListener(new android.text.TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int c,int a){}public void onTextChanged(CharSequence s,int st,int b,int c){redraw.run();}public void afterTextChanged(android.text.Editable e){}});
+        paid.addTextChangedListener(new android.text.TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int c,int a){}public void onTextChanged(CharSequence s,int st,int b,int c){redraw.run();}public void afterTextChanged(android.text.Editable e){}});
         redraw.run();
     }
 
     double totalOf(ArrayList<Line> ls){double x=0;for(Line l:ls)x+=l.total;return x;}
-    void showPhoneDialog(String name,String no,ArrayList<Line> lines,double total,boolean edit,long oldId){
-        EditText phone=phoneField("رقم هاتف العميل (اختياري)");phone.setText(db.phoneByName(name));
+    double parsePaid(EditText e){try{return Math.max(0,Double.parseDouble(e.getText().toString().trim()));}catch(Exception ex){return 0;}}
+    void showPhoneDialog(String name,String no,ArrayList<Line> lines,double total,double paid,boolean edit,long oldId){
+        EditText phone=phoneField("رقم هاتف العميل");
+        phone.setText(db.phoneByName(name));
         LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(8),dp(4),dp(8),dp(4));
-        box.addView(tv("إن كان العميل جديداً سيُضاف تلقائياً. بدون هاتف سيُحفظ رقم عميل داخلي مثل C00001، وليس رقماً هاتفياً وهمياً.",13));
-        box.addView(phone,new LinearLayout.LayoutParams(-1,dp(36)));
-        new AlertDialog.Builder(this).setTitle("تأكيد بيانات العميل").setView(box).setPositiveButton("حفظ",(d,w)->{
-            String p=phone.getText().toString().trim();long cid=db.customer(name,p);String date=db.now();
-            if(edit){String oldNo=db.invoiceNo(oldId);db.deleteInvoiceTransaction(oldNo);db.updateInvoice(oldId,no,name,total,date);db.replaceInvoiceLines(oldId,lines);}
-            else{long id=db.addInvoice(no,name,total,date);db.replaceInvoiceLines(id,lines);}
-            db.addTransactionOnce(cid,total,"فاتورة مبيعات رقم "+no,date);
-            cacheLastInvoice(no,name,lines,total,date);
-            Toast.makeText(this,"تم حفظ الفاتورة في قاعدة بيانات الجهاز ونسخة مؤقتة للاسترجاع السريع.",Toast.LENGTH_SHORT).show();
-            invoiceHistory(); showPostSaveActions(no,name,lines,total,cid);
-        }).setNegativeButton("إلغاء",null).show();
+        box.addView(tv("رقم العميل غير مسجل. أضف رقم الهاتف حتى يمكن مشاركة الفاتورة معه عبر واتساب. لا يظهر 967 داخل خانة العميل.",12));
+        box.addView(phone,new LinearLayout.LayoutParams(-1,dp(40)));
+        new AlertDialog.Builder(this).setTitle("إضافة رقم العميل").setView(box)
+            .setPositiveButton("حفظ الفاتورة",(d,w)->{
+                String p=phone.getText().toString().trim();
+                if(p.isEmpty()){Toast.makeText(this,"أدخل رقم العميل حتى يتم حفظه ومشاركة الفاتورة معه.",Toast.LENGTH_SHORT).show();return;}
+                saveInvoice(name,no,lines,total,paid,p,edit,oldId);
+            }).setNegativeButton("إلغاء",null).show();
     }
-
+    void saveInvoice(String name,String no,ArrayList<Line> lines,double total,double paid,String phone,boolean edit,long oldId){
+        if(paid>total){Toast.makeText(this,"المبلغ المدفوع لا يمكن أن يتجاوز إجمالي الفاتورة.",Toast.LENGTH_SHORT).show();return;}
+        long cid=db.customer(name,phone); String date=db.now();
+        if(edit){String oldNo=db.invoiceNo(oldId);db.deleteInvoiceTransaction(oldNo);db.updateInvoice(oldId,no,name,total,paid,date);db.replaceInvoiceLines(oldId,lines);}
+        else{long id=db.addInvoice(no,name,total,paid,date);db.replaceInvoiceLines(id,lines);}
+        double due=Math.max(0,total-paid); db.addTransactionOnce(cid,due,"فاتورة مبيعات رقم "+no,date);
+        cacheLastInvoice(no,name,lines,total,date);
+        notifyNewOperation("تم حفظ الفاتورة","الفاتورة رقم "+no+" — "+fmt(total)+" ريال");
+        showPostSaveActions(no,name,lines,total,cid);
+    }
+    
     void cacheLastInvoice(String no,String customer,ArrayList<Line> lines,double total,String date){
         try{
             File dir=new File(getCacheDir(),"invoices"); if(!dir.exists())dir.mkdirs();
@@ -502,8 +518,8 @@ public class MainActivity extends Activity {
         LinearLayout actions=new LinearLayout(this);actions.setOrientation(LinearLayout.HORIZONTAL);
         Button share=button("مشاركة");share.setTextColor(Color.WHITE);share.setBackgroundColor(GREEN);Button hide=button("إخفاء");hide.setTextColor(MUTED);
         actions.addView(share,new LinearLayout.LayoutParams(0,dp(38),1));actions.addView(hide,new LinearLayout.LayoutParams(0,dp(38),1));box.addView(actions);
-        share.setOnClickListener(v->{dialog.dismiss();shareReceiptImageAndText(no,customer,lines,total);});hide.setOnClickListener(v->dialog.dismiss());
-        dialog.setContentView(box);dialog.setCanceledOnTouchOutside(true);dialog.show();
+        share.setOnClickListener(v->{dialog.dismiss();shareReceiptImageAndText(no,customer,lines,total);});hide.setOnClickListener(v->{dialog.dismiss();invoiceHistory();});
+        dialog.setContentView(box);dialog.setCanceledOnTouchOutside(false);dialog.setOnCancelListener(d->invoiceHistory());dialog.show();
         if(dialog.getWindow()!=null){dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);dialog.getWindow().setLayout(dp(320),WindowManager.LayoutParams.WRAP_CONTENT);dialog.getWindow().setGravity(Gravity.CENTER);}
     }
 
@@ -1068,10 +1084,10 @@ public class MainActivity extends Activity {
     }
 
     static class DB extends SQLiteOpenHelper{
-        DB(Context c){super(c,"enezi.db",null,6);}
+        DB(Context c){super(c,"enezi.db",null,7);}
         public void onCreate(SQLiteDatabase d){create(d);}
-        void create(SQLiteDatabase d){d.execSQL("CREATE TABLE customers(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,phone TEXT)");d.execSQL("CREATE TABLE invoices(id INTEGER PRIMARY KEY AUTOINCREMENT,no TEXT,customer TEXT,total REAL,date TEXT)");d.execSQL("CREATE TABLE transactions(id INTEGER PRIMARY KEY AUTOINCREMENT,customer_id INTEGER,amount REAL,details TEXT,type INTEGER,date TEXT)");d.execSQL("CREATE TABLE items(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT,qty REAL,min_qty REAL)");d.execSQL("CREATE TABLE invoice_items(id INTEGER PRIMARY KEY AUTOINCREMENT,invoice_id INTEGER,name TEXT,qty REAL,total REAL)");}
-        public void onUpgrade(SQLiteDatabase d,int o,int n){if(o<6){try{d.execSQL("ALTER TABLE customers ADD COLUMN phone TEXT");}catch(Exception ignored){}}if(o<2){try{d.execSQL("ALTER TABLE invoices ADD COLUMN date TEXT");}catch(Exception ignored){}}if(o<5){d.execSQL("CREATE TABLE IF NOT EXISTS invoice_items(id INTEGER PRIMARY KEY AUTOINCREMENT,invoice_id INTEGER,name TEXT,qty REAL,total REAL)");}}
+        void create(SQLiteDatabase d){d.execSQL("CREATE TABLE customers(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,phone TEXT)");d.execSQL("CREATE TABLE invoices(id INTEGER PRIMARY KEY AUTOINCREMENT,no TEXT,customer TEXT,total REAL,paid REAL DEFAULT 0,date TEXT)");d.execSQL("CREATE TABLE transactions(id INTEGER PRIMARY KEY AUTOINCREMENT,customer_id INTEGER,amount REAL,details TEXT,type INTEGER,date TEXT)");d.execSQL("CREATE TABLE items(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT,qty REAL,min_qty REAL)");d.execSQL("CREATE TABLE invoice_items(id INTEGER PRIMARY KEY AUTOINCREMENT,invoice_id INTEGER,name TEXT,qty REAL,total REAL)");}
+        public void onUpgrade(SQLiteDatabase d,int o,int n){if(o<6){try{d.execSQL("ALTER TABLE customers ADD COLUMN phone TEXT");}catch(Exception ignored){}}if(o<7){try{d.execSQL("ALTER TABLE invoices ADD COLUMN paid REAL DEFAULT 0");}catch(Exception ignored){}}if(o<2){try{d.execSQL("ALTER TABLE invoices ADD COLUMN date TEXT");}catch(Exception ignored){}}if(o<5){d.execSQL("CREATE TABLE IF NOT EXISTS invoice_items(id INTEGER PRIMARY KEY AUTOINCREMENT,invoice_id INTEGER,name TEXT,qty REAL,total REAL)");}}
         String now(){return new SimpleDateFormat("yyyy-MM-dd HH:mm",Locale.US).format(new Date());}
         long customer(String n){Cursor c=getReadableDatabase().rawQuery("SELECT id FROM customers WHERE name=?",new String[]{n});if(c.moveToFirst()){long x=c.getLong(0);c.close();return x;}c.close();ContentValues v=new ContentValues();v.put("name",n);return getWritableDatabase().insert("customers",null,v);}
         void updateCustomer(long id,String oldName,String newName,String phone){
@@ -1080,7 +1096,7 @@ public class MainActivity extends Activity {
             if(oldName!=null&&!oldName.equals(newName)){ContentValues iv=new ContentValues();iv.put("customer",newName);d.update("invoices",iv,"customer=?",new String[]{oldName});}
         }
         void addCustomer(String n,String p){ContentValues v=new ContentValues();v.put("name",n);v.put("phone",p);getWritableDatabase().insert("customers",null,v);}
-        long addInvoice(String no,String c,double t,String date){ContentValues v=new ContentValues();v.put("no",no);v.put("customer",c);v.put("total",t);v.put("date",date);return getWritableDatabase().insert("invoices",null,v);}
+        long addInvoice(String no,String c,double t,double paid,String date){ContentValues v=new ContentValues();v.put("no",no);v.put("customer",c);v.put("total",t);v.put("paid",paid);v.put("date",date);return getWritableDatabase().insert("invoices",null,v);}
         void addTransaction(long id,double a,String d,int type,String date){if(id<1)return;ContentValues v=new ContentValues();v.put("customer_id",id);v.put("amount",a);v.put("details",d);v.put("type",type);v.put("date",date);getWritableDatabase().insert("transactions",null,v);}
         double balance(long id){Cursor c=getReadableDatabase().rawQuery("SELECT COALESCE(SUM(CASE WHEN type=1 THEN amount ELSE -amount END),0) FROM transactions WHERE customer_id=?",new String[]{String.valueOf(id)});double x=c.moveToFirst()?c.getDouble(0):0;c.close();return x;}
         Cursor customers(String q){return getReadableDatabase().rawQuery("SELECT id,name,COALESCE(phone,'') FROM customers WHERE name LIKE ? OR phone LIKE ? ORDER BY name",new String[]{"%"+q+"%","%"+q+"%"});}
@@ -1113,7 +1129,7 @@ public class MainActivity extends Activity {
         double balanceByName(String n){Cursor c=getReadableDatabase().rawQuery("SELECT id FROM customers WHERE name=? ORDER BY id DESC LIMIT 1",new String[]{n});if(!c.moveToFirst()){c.close();return 0;}long id=c.getLong(0);c.close();return balance(id);}
         String invoiceNo(long id){Cursor c=getReadableDatabase().rawQuery("SELECT no FROM invoices WHERE id=?",new String[]{String.valueOf(id)});String x=c.moveToFirst()?c.getString(0):"";c.close();return x==null?"":x;}
         String invoiceCustomer(long id){Cursor c=getReadableDatabase().rawQuery("SELECT customer FROM invoices WHERE id=?",new String[]{String.valueOf(id)});String x=c.moveToFirst()?c.getString(0):"";c.close();return x==null?"":x;}
-        void updateInvoice(long id,String no,String customer,double total,String date){ContentValues v=new ContentValues();v.put("no",no);v.put("customer",customer);v.put("total",total);v.put("date",date);getWritableDatabase().update("invoices",v,"id=?",new String[]{String.valueOf(id)});}
+        void updateInvoice(long id,String no,String customer,double total,double paid,String date){ContentValues v=new ContentValues();v.put("no",no);v.put("customer",customer);v.put("total",total);v.put("paid",paid);v.put("date",date);getWritableDatabase().update("invoices",v,"id=?",new String[]{String.valueOf(id)});}
         Cursor invoiceLines(long id){return getReadableDatabase().rawQuery("SELECT id,name,qty,total FROM invoice_items WHERE invoice_id=? ORDER BY id",new String[]{String.valueOf(id)});}
         void replaceInvoiceLines(long id,ArrayList<Line> ls){SQLiteDatabase d=getWritableDatabase();d.delete("invoice_items","invoice_id=?",new String[]{String.valueOf(id)});for(Line l:ls){ContentValues v=new ContentValues();v.put("invoice_id",id);v.put("name",l.name);v.put("qty",l.qty);v.put("total",l.total);d.insert("invoice_items",null,v);}}
         void deleteInvoice(long id){String no=invoiceNo(id);deleteInvoiceTransaction(no);SQLiteDatabase d=getWritableDatabase();d.delete("invoice_items","invoice_id=?",new String[]{String.valueOf(id)});d.delete("invoices","id=?",new String[]{String.valueOf(id)});}
