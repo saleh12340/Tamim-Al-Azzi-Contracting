@@ -876,10 +876,16 @@ public class MainActivity extends Activity {
         c.close();return ls;
     }
     String purchaseReceiptText(String no,String supplier,ArrayList<PurchaseLine> lines,double total,String date){
-        StringBuilder s=new StringBuilder("بقالة العزي\nفاتورة شراء رقم: ").append(no).append("\nالمورد: ").append(supplier==null||supplier.isEmpty()?"بدون مورد":supplier).append("\nالتاريخ: ").append(date).append("\n");
-        s.append("------------------------------------------------\nالصنف | الكمية | سعر الوحدة | سعر البيع | الإجمالي\n");
-        for(PurchaseLine l:lines)s.append(l.name).append(" | ").append(fmt(l.qty)).append(" | ").append(fmt(l.cost)).append(" | ").append(fmt(l.sale)).append(" | ").append(fmt(l.total)).append("\n");
-        s.append("------------------------------------------------\nالإجمالي: ").append(fmt(total)).append(" ريال\nشكراً لتعاملكم معنا");
+        // إيصال شراء متوافق مع طابعة حرارية Bluetooth بعرض 58mm: ثلاثة أعمدة فقط،
+        // مع إبقاء تكلفة الوحدة وسعر البيع في سطر منفصل لتجنب قصّ النص أو تداخل الأعمدة.
+        StringBuilder s=new StringBuilder("بقالة العزي\\nفاتورة شراء رقم: ").append(no).append("\\nالمورد: ").append(supplier==null||supplier.isEmpty()?"بدون مورد":supplier).append("\\nالتاريخ: ").append(date).append("\\n");
+        s.append("------------------------------\\nالصنف | الكمية | الإجمالي\\n");
+        for(PurchaseLine l:lines){
+            String n=l.name==null?"":l.name.trim();
+            s.append(n).append(" | ").append(fmt(l.qty)).append(" | ").append(fmt(l.total)).append("\\n");
+            s.append("تكلفة: ").append(fmt(l.cost)).append("  •  بيع: ").append(fmt(l.sale)).append(" ريال\\n");
+        }
+        s.append("------------------------------\\nالإجمالي: ").append(fmt(total)).append(" ريال\\nشكراً لتعاملكم معنا");
         return s.toString();
     }
     void sharePurchaseInvoice(long id,String no,String supplier,double total,String date){
