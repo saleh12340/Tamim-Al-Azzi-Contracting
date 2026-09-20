@@ -257,13 +257,13 @@ public class MainActivity extends Activity {
         // وصول سريع للمخزون والإجراءات العامة، مع الحفاظ على بساطة الشاشة الرئيسية.
         LinearLayout tabs3=new LinearLayout(this);
         tabs3.setOrientation(LinearLayout.HORIZONTAL); tabs3.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        Button notesTab=action("📝 الملاحظات",Color.rgb(125,70,170)); notesTab.setTextSize(11); notesTab.setMaxLines(1); fitInside(notesTab,13f,9f); notesTab.setOnClickListener(v->notes());
         Button inventoryTab=action("📦 المخزون",GREEN); inventoryTab.setTextSize(12); inventoryTab.setMaxLines(1); fitInside(inventoryTab,13f,9f);
         inventoryTab.setOnClickListener(v->inventory());
         Button generalTab=action("⚡ إجراء عام",BLUE); generalTab.setTextSize(12); generalTab.setMaxLines(1); fitInside(generalTab,13f,9f);
         generalTab.setOnClickListener(v->showGeneralActions());
         tabs3.addView(inventoryTab,new LinearLayout.LayoutParams(0,dp(50),1));
-        LinearLayout.LayoutParams gp=new LinearLayout.LayoutParams(0,dp(50),1); gp.setMargins(dp(3),0,0,0); tabs3.addView(generalTab,gp);
-        middle.addView(tabs3,new LinearLayout.LayoutParams(-1,dp(52))); addSpaceTo(middle,6);
+        LinearLayout.LayoutParams gp=new LinearLayout.LayoutParams(0,dp(50),1); gp.setMargins(dp(3),0,0,0); tabs3.addView(generalTab,gp);        middle.addView(tabs3,new LinearLayout.LayoutParams(-1,dp(52))); addSpaceTo(middle,6);
 
         LinearLayout screen=card();
         screen.setPadding(dp(9),dp(7),dp(9),dp(7));
