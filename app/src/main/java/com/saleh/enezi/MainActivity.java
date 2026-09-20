@@ -97,8 +97,7 @@ public class MainActivity extends Activity {
         LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);c.setPadding(14,8,14,8);c.setBackground(outlined(CARD,1,16));c.setElevation(2);
         TextView a=tv(title,17);a.setTextColor(GREEN);a.setTypeface(Typeface.DEFAULT,Typeface.BOLD);c.addView(a);
         TextView b=tv(sub,12);b.setTextColor(MUTED);c.addView(b);LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,dp(72)); cp.setMargins(0,0,0,7); content.addView(c,cp);return a;
-    }    void addAction(String a,String sub,View.OnClickListener l){
-        LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);c.setPadding(12,5,12,5);c.setBackground(outlined(CARD,1,16));c.setElevation(2);
+    }    void addAction(String a,String sub,View.OnClickListener l){        LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);c.setPadding(12,5,12,5);c.setBackground(outlined(CARD,1,16));c.setElevation(2);
         Button b=button(a);b.setTextSize(13);b.setTextColor(TEXT);b.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);b.setOnClickListener(l);c.addView(b,new LinearLayout.LayoutParams(-1,dp(38)));
         TextView s=tv(sub,12);s.setTextColor(MUTED);c.addView(s,new LinearLayout.LayoutParams(-1,30));LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(-1,dp(82)); ap.setMargins(0,0,0,7); content.addView(c,ap);
     }
@@ -197,7 +196,6 @@ public class MainActivity extends Activity {
         metaRow.addView(dt,new LinearLayout.LayoutParams(0,dp(42),1.15f));
         content.addView(metaRow);space(8);
         if(edit) customer.setText(db.invoiceCustomer(invoiceId));
-
         section("إدخال الصنف");
         LinearLayout entry=card();entry.setPadding(dp(10),dp(10),dp(10),dp(10));
         LinearLayout line=new LinearLayout(this);
@@ -297,8 +295,7 @@ public class MainActivity extends Activity {
             showPhoneDialog(cn,no.getText().toString(),lines,totalOf(lines),edit,invoiceId);
         });
         print.setOnClickListener(v->preview(no.getText().toString(),customer.getText().toString(),lines,totalOf(lines)));
-        item.setOnEditorActionListener((v,a,e)->{add.performClick();return true;});
-        redraw.run();
+        item.setOnEditorActionListener((v,a,e)->{add.performClick();return true;});        redraw.run();
     }
 
     double totalOf(ArrayList<Line> ls){double x=0;for(Line l:ls)x+=l.total;return x;}
@@ -341,15 +338,20 @@ public class MainActivity extends Activity {
     void redrawInvoiceRows(LinearLayout parent,ArrayList<Line> all,double baseBal){parent.removeAllViews();double run=0;for(Line x:all){run+=x.total;addRow(parent,x,run,baseBal,all);}}
     void spaceTo(LinearLayout p,int h){Space x=new Space(this);p.addView(x,new LinearLayout.LayoutParams(1,dp(h)));}
     void preview(String no,String customer,ArrayList<Line> lines,double total){
-        String s=receiptTextFromLines(no,customer,lines,total,customer.isEmpty()?-1:db.customer(customer));
-        TextView v=tv(s,12);v.setTypeface(Typeface.MONOSPACE);v.setGravity(Gravity.CENTER);
+        long cid=customer.trim().isEmpty()?-1:db.customer(customer);
+        double balanceAfter=cid>0?db.balance(cid)+total:0;
+        String s=receiptTextFromLines(no,customer,lines,total,cid,balanceAfter);
+        TextView v=tv(s,11);v.setTypeface(Typeface.MONOSPACE);v.setGravity(Gravity.CENTER);
         new AlertDialog.Builder(this).setTitle("معاينة إيصال 58mm").setView(v)
-            .setPositiveButton("مشاركة",(d,w)->shareReceiptImageAndText(no,customer,lines,total))
+            .setPositiveButton("مشاركة واتساب",(d,w)->shareReceiptImageAndText(no,customer,lines,total))
             .setNeutralButton("طباعة",(d,w)->printInvoiceBluetooth(no,customer,lines,total))
             .setNegativeButton("إغلاق",null).show();
     }
 
     String receiptTextFromLines(String no,String customer,ArrayList<Line> lines,double total,long cid){
+        return receiptTextFromLines(no,customer,lines,total,cid,cid>0?db.balance(cid):0);
+    }
+    String receiptTextFromLines(String no,String customer,ArrayList<Line> lines,double total,long cid,double balanceAfter){
         StringBuilder s=new StringBuilder();
         s.append("بقالة العزي\\n");
         s.append("فاتورة مبيعات رقم: ").append(no).append("\\n");
@@ -360,18 +362,16 @@ public class MainActivity extends Activity {
         for(Line l:lines){
             String n=l.name==null?"":l.name.trim();
             if(n.length()>18)n=n.substring(0,18);
-            s.append(n);
-            for(int i=n.length();i<20;i++)s.append(' ');
+            s.append(n);for(int i=n.length();i<20;i++)s.append(' ');
             s.append(fmt(l.qty)).append("     ").append(fmt(l.total)).append("\\n");
         }
         s.append("------------------------------\\n");
         s.append("الإجمالي: ").append(fmt(total)).append(" ريال\\n");
         if(cid>0){
-            double b=db.balance(cid);
-            if(b>0)s.append("المتبقي على العميل: ");
-            else if(b<0)s.append("المتبقي للعميل: ");
+            if(balanceAfter>0)s.append("المتبقي على العميل: ");
+            else if(balanceAfter<0)s.append("المتبقي للعميل: ");
             else s.append("المتبقي: ");
-            s.append(fmt(Math.abs(b))).append(" ريال\\n");
+            s.append(fmt(Math.abs(balanceAfter))).append(" ريال\\n");
         }
         s.append("شكراً لتعاملكم معنا");
         return s.toString();
@@ -397,8 +397,7 @@ public class MainActivity extends Activity {
             String pdfText=statement(id,name);
             File dir=new File(getCacheDir(),"statements");if(!dir.exists())dir.mkdirs();
             File file=new File(dir,"statement_"+id+"_"+System.currentTimeMillis()+".pdf");
-            android.graphics.pdf.PdfDocument pdf=new android.graphics.pdf.PdfDocument();
-            int pageW=595,pageH=842,margin=24,pageNo=1,y=margin;
+            android.graphics.pdf.PdfDocument pdf=new android.graphics.pdf.PdfDocument();            int pageW=595,pageH=842,margin=24,pageNo=1,y=margin;
             android.graphics.pdf.PdfDocument.PageInfo info=new android.graphics.pdf.PdfDocument.PageInfo.Builder(pageW,pageH,pageNo).create();
             android.graphics.pdf.PdfDocument.Page page=pdf.startPage(info);Canvas canvas=page.getCanvas();
             TextPaint paint=new TextPaint(Paint.ANTI_ALIAS_FLAG);paint.setColor(Color.BLACK);paint.setTextSize(dp(12));
@@ -497,8 +496,7 @@ public class MainActivity extends Activity {
                 TextView title=tv(n,18); title.setTextColor(GREEN); title.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
                 card.addView(title,new LinearLayout.LayoutParams(-1,dp(34)));
                 TextView sub=tv((p==null||p.isEmpty()?"بدون رقم":p)+"   •   "+db.transactionCount(id)+" عملية",12); sub.setTextColor(MUTED);
-                card.addView(sub,new LinearLayout.LayoutParams(-1,dp(30)));
-                TextView balance=tv(balanceText(bal),15); balance.setTextColor(bal>0?Color.rgb(190,55,45):GREEN);
+                card.addView(sub,new LinearLayout.LayoutParams(-1,dp(30)));                TextView balance=tv(balanceText(bal),15); balance.setTextColor(bal>0?Color.rgb(190,55,45):GREEN);
                 balance.setTypeface(Typeface.DEFAULT,Typeface.BOLD); card.addView(balance,new LinearLayout.LayoutParams(-1,dp(34)));
                 list.addView(card,new LinearLayout.LayoutParams(-1,dp(108))); addSpaceTo(list,8);
             } c.close();
@@ -530,8 +528,12 @@ public class MainActivity extends Activity {
         content.addView(sharePdf,new LinearLayout.LayoutParams(-1,dp(42)));sharePdf.setOnClickListener(v->shareAccountPdfToWhatsApp(id,name));
 
         section("سجل العمليات");
-        Button shareSelected=button("📤 مشاركة العمليات المحددة");shareSelected.setTextColor(GREEN);shareSelected.setBackground(outline(CARD,12));
-        content.addView(shareSelected,new LinearLayout.LayoutParams(-1,dp(40)));addSpace(5);
+        LinearLayout selectedActions=new LinearLayout(this);selectedActions.setOrientation(LinearLayout.HORIZONTAL);
+        Button shareSelected=button("📤 مشاركة المحدد");shareSelected.setTextColor(GREEN);shareSelected.setBackground(outline(CARD,12));
+        Button printSelected=button("🖨 طباعة المحدد");printSelected.setTextColor(GREEN);printSelected.setBackground(outline(CARD,12));
+        selectedActions.addView(shareSelected,new LinearLayout.LayoutParams(0,dp(40),1));
+        selectedActions.addView(printSelected,new LinearLayout.LayoutParams(0,dp(40),1));
+        content.addView(selectedActions);addSpace(5);
         LinearLayout history=new LinearLayout(this);history.setOrientation(LinearLayout.VERTICAL);content.addView(history);
         final ArrayList<Long> selected=new ArrayList<>();
 
@@ -564,6 +566,7 @@ public class MainActivity extends Activity {
         };
         debit.setOnClickListener(addOp);credit.setOnClickListener(addOp);
         shareSelected.setOnClickListener(v->{if(selected.isEmpty())Toast.makeText(this,"حدد عملية واحدة أو أكثر أولاً",Toast.LENGTH_SHORT).show();else shareSelectedTransactions(id,name,new ArrayList<>(selected));});
+        printSelected.setOnClickListener(v->{if(selected.isEmpty())Toast.makeText(this,"حدد عملية واحدة أو أكثر أولاً",Toast.LENGTH_SHORT).show();else printSelectedTransactions(id,name,new ArrayList<>(selected));});
         refresh.run();
     }
 
@@ -597,8 +600,7 @@ public class MainActivity extends Activity {
 
     void editTransaction(long id,String name,long tid,double oldAmount,String oldDetails,int oldType){
         EditText amount=field("المبلغ");amount.setText(fmt(oldAmount));EditText details=field("التفاصيل");details.setText(oldDetails==null?"":oldDetails);
-        LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(8),dp(4),dp(8),dp(4));box.addView(amount);spaceInside(box,4);box.addView(details);
-        new AlertDialog.Builder(this).setTitle("تعديل العملية").setView(box).setPositiveButton("حفظ",(d,w)->{
+        LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(8),dp(4),dp(8),dp(4));box.addView(amount);spaceInside(box,4);box.addView(details);        new AlertDialog.Builder(this).setTitle("تعديل العملية").setView(box).setPositiveButton("حفظ",(d,w)->{
             try{double a=Double.parseDouble(amount.getText().toString().trim());if(a<=0)throw new Exception();db.updateTransaction(tid,a,details.getText().toString().trim(),oldType,db.now());account(id,name);}
             catch(Exception e){Toast.makeText(this,"بيانات العملية غير صحيحة",Toast.LENGTH_SHORT).show();}
         }).setNegativeButton("إلغاء",null).show();
@@ -625,6 +627,23 @@ public class MainActivity extends Activity {
         for(Long tid:ids){Cursor c=db.transactionById(tid);if(c.moveToFirst()){String d=c.getString(3);double a=c.getDouble(4);int t=c.getInt(5);text.append(c.getString(2)).append(" | ").append(d==null?"":d).append(" | ").append(t==1?"عليه: ":"له: ").append(fmt(a)).append(" ريال\\n");if(t==1)debit+=a;else credit+=a;}c.close();}
         text.append("إجمالي المحدد عليه: ").append(fmt(debit)).append(" ريال\\nإجمالي المحدد له: ").append(fmt(credit)).append(" ريال\\n").append(balanceText(db.balance(customerId)));
         shareWhatsAppToCustomer(db.phoneByName(name),text,null);
+    }
+
+    void printSelectedTransactions(long customerId,String name,ArrayList<Long> ids){
+        StringBuilder text=new StringBuilder("بقالة العزي\\nكشف عمليات: ").append(name).append("\\n");
+        double debit=0,credit=0;
+        for(Long tid:ids){
+            Cursor c=db.transactionById(tid);
+            if(c.moveToFirst()){
+                String d=c.getString(3);double a=c.getDouble(4);int t=c.getInt(5);
+                text.append(c.getString(2)).append(" | ").append(d==null?"":d).append(" | ").append(t==1?"عليه: ":"له: ").append(fmt(a)).append(" ريال\\n");
+                if(t==1)debit+=a;else credit+=a;
+            }c.close();
+        }
+        text.append("------------------------------\\nإجمالي المحدد عليه: ").append(fmt(debit)).append(" ريال\\n");
+        text.append("إجمالي المحدد له: ").append(fmt(credit)).append(" ريال\\n");
+        text.append("الرصيد الحالي: ").append(balanceText(db.balance(customerId)));
+        previewTextForPrint(text.toString(),name);
     }
 
     void printOperation(String customer,String details,double amount,int type,String invNo){
@@ -698,25 +717,3 @@ public class MainActivity extends Activity {
         double balanceByName(String n){Cursor c=getReadableDatabase().rawQuery("SELECT id FROM customers WHERE name=? LIMIT 1",new String[]{n});if(!c.moveToFirst()){c.close();return 0;}long id=c.getLong(0);c.close();return balance(id);}
         String invoiceNo(long id){Cursor c=getReadableDatabase().rawQuery("SELECT no FROM invoices WHERE id=?",new String[]{String.valueOf(id)});String x=c.moveToFirst()?c.getString(0):"";c.close();return x==null?"":x;}
         String invoiceCustomer(long id){Cursor c=getReadableDatabase().rawQuery("SELECT customer FROM invoices WHERE id=?",new String[]{String.valueOf(id)});String x=c.moveToFirst()?c.getString(0):"";c.close();return x==null?"":x;}
-        void updateInvoice(long id,String no,String customer,double total,String date){ContentValues v=new ContentValues();v.put("no",no);v.put("customer",customer);v.put("total",total);v.put("date",date);getWritableDatabase().update("invoices",v,"id=?",new String[]{String.valueOf(id)});}
-        Cursor invoiceLines(long id){return getReadableDatabase().rawQuery("SELECT id,name,qty,total FROM invoice_items WHERE invoice_id=? ORDER BY id",new String[]{String.valueOf(id)});}
-        void replaceInvoiceLines(long id,ArrayList<Line> ls){SQLiteDatabase d=getWritableDatabase();d.delete("invoice_items","invoice_id=?",new String[]{String.valueOf(id)});for(Line l:ls){ContentValues v=new ContentValues();v.put("invoice_id",id);v.put("name",l.name);v.put("qty",l.qty);v.put("total",l.total);d.insert("invoice_items",null,v);}}
-        void deleteInvoice(long id){String no=invoiceNo(id);deleteInvoiceTransaction(no);SQLiteDatabase d=getWritableDatabase();d.delete("invoice_items","invoice_id=?",new String[]{String.valueOf(id)});d.delete("invoices","id=?",new String[]{String.valueOf(id)});}
-        void deleteInvoiceTransaction(String no){getWritableDatabase().delete("transactions","details=?",new String[]{"فاتورة مبيعات رقم "+no});}
-        void addTransactionOnce(long id,double a,String details,String date){if(id>0)addTransaction(id,a,details,1,date);}
-        int nextInvoice(){return invoiceCount()+1;}
-        long invoiceIdByNo(String no){Cursor c=getReadableDatabase().rawQuery("SELECT id FROM invoices WHERE no=? ORDER BY id DESC LIMIT 1",new String[]{no});long x=c.moveToFirst()?c.getLong(0):-1;c.close();return x;}
-        Cursor transactionById(long id){return getReadableDatabase().rawQuery("SELECT id,customer_id,date,details,amount,type FROM transactions WHERE id=?",new String[]{String.valueOf(id)});}
-        void updateTransaction(long id,double amount,String details,int type,String date){ContentValues v=new ContentValues();v.put("amount",amount);v.put("details",details);v.put("type",type);v.put("date",date);getWritableDatabase().update("transactions",v,"id=?",new String[]{String.valueOf(id)});}
-        void deleteTransaction(long id){getWritableDatabase().delete("transactions","id=?",new String[]{String.valueOf(id)});}
-        void deleteCustomer(long id){
-            SQLiteDatabase d=getWritableDatabase();
-            Cursor c=d.rawQuery("SELECT id FROM invoices WHERE customer=(SELECT name FROM customers WHERE id=?)",new String[]{String.valueOf(id)});
-            ArrayList<Long> invoiceIds=new ArrayList<>();while(c.moveToNext())invoiceIds.add(c.getLong(0));c.close();
-            d.delete("transactions","customer_id=?",new String[]{String.valueOf(id)});
-            for(Long iid:invoiceIds)d.delete("invoice_items","invoice_id=?",new String[]{String.valueOf(iid)});
-            d.delete("invoices","customer=(SELECT name FROM customers WHERE id=?)",new String[]{String.valueOf(id)});
-            d.delete("customers","id=?",new String[]{String.valueOf(id)});
-        }
-    }
-}
