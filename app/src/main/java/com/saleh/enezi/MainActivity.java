@@ -1111,6 +1111,8 @@ public class MainActivity extends Activity {
         contactActions.addView(pick,new LinearLayout.LayoutParams(0,dp(36),1));contactActions.addView(add,new LinearLayout.LayoutParams(0,dp(36),1));addBox.addView(contactActions);
         content.addView(addBox,new LinearLayout.LayoutParams(-1,-2)); addSpace(12);
         LinearLayout list=new LinearLayout(this);list.setOrientation(LinearLayout.VERTICAL);content.addView(list);
+        clearFormBtn.setOnClickListener(v->clearForm.run());
+
         final Runnable[] refresh={null};
         refresh[0]=()->{
             list.removeAllViews();Cursor c=db.customers(search.getText().toString());
@@ -1355,8 +1357,12 @@ public class MainActivity extends Activity {
         base("المخزون");section("إضافة / تعديل صنف");
         EditText name=field("اسم الصنف");EditText qty=numberField("الكمية");EditText min=numberField("الحد الأدنى");
         addField(name);addField(qty);addField(min);
+        LinearLayout stockForm=new LinearLayout(this); stockForm.setOrientation(LinearLayout.HORIZONTAL); stockForm.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
         Button add=button("＋ حفظ الصنف");add.setTextColor(Color.WHITE);add.setBackgroundColor(GREEN);
-        content.addView(add,new LinearLayout.LayoutParams(-1,dp(38)));addSpace(8);
+        Button clearFormBtn=button("مسح");clearFormBtn.setTextColor(MUTED);
+        stockForm.addView(add,new LinearLayout.LayoutParams(0,dp(40),1.7f));
+        stockForm.addView(clearFormBtn,new LinearLayout.LayoutParams(0,dp(40),.65f));
+        content.addView(stockForm,new LinearLayout.LayoutParams(-1,dp(42)));addSpace(8);
         LinearLayout list=new LinearLayout(this);list.setOrientation(LinearLayout.VERTICAL);content.addView(list);
 
         final long[] editingId={-1};
