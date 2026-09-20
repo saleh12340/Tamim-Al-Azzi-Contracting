@@ -68,7 +68,7 @@ public class MainActivity extends Activity {
         if(prev.equals("الرئيسية")) home();
         else if(prev.equals("الحسابات")||prev.equals("العملاء")) customers();
         else if(prev.equals("الفواتير")) invoiceHistory();
-        else if(prev.equals("المخزون")) inventory();
+        else if(prev.equals("فواتير الشراء")||prev.equals("المخزون")) purchaseInvoices();
         else if(prev.equals("التقارير")) reports();
         else home();
     }
@@ -145,7 +145,7 @@ public class MainActivity extends Activity {
         sv.addView(content); root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));
         setContentView(root);
     }
-    void navigate(String n){hideKeyboard(); if(n.equals("الرئيسية"))home();else if(n.equals("العملاء")||n.equals("الحسابات"))customers();else if(n.equals("الفواتير"))invoice();else if(n.equals("المخزون"))inventory();else reports();}
+    void navigate(String n){hideKeyboard(); if(n.equals("الرئيسية"))home();else if(n.equals("العملاء")||n.equals("الحسابات"))customers();else if(n.equals("الفواتير"))invoice();else if(n.equals("فواتير الشراء")||n.equals("المخزون"))purchaseInvoices();else reports();}
     void importContact(){
         if(Build.VERSION.SDK_INT>=23 && checkSelfPermission("android.permission.READ_CONTACTS")!=PackageManager.PERMISSION_GRANTED){ requestPermissions(new String[]{"android.permission.READ_CONTACTS"},REQ_CONTACTS); return; }
         try{ Intent i=new Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI); startActivityForResult(i,PICK_CONTACT); }catch(Exception e){ Toast.makeText(this,"تعذر فتح جهات الاتصال",Toast.LENGTH_SHORT).show(); }
@@ -209,9 +209,9 @@ public class MainActivity extends Activity {
 
         section("الأقسام الرئيسية");
 
-        String[] names={"👥 العملاء والحسابات","🧾 الفواتير","📦 المخزون والأصناف","📊 التقارير"};
-        String[] subs={"العملاء، الأرصدة والحركات","سجل الفواتير والتعديل والحذف","الأصناف والكميات والتنبيهات","ملخص المبيعات والحركة"};
-        View.OnClickListener[] actions={v->customers(),v->invoiceHistory(),v->inventory(),v->reports()};
+        String[] names={"👥 العملاء والحسابات","🧾 الفواتير","🛒 فواتير الشراء","📊 التقارير"};
+        String[] subs={"العملاء، الأرصدة والحركات","سجل فواتير البيع والتعديل والحذف","المشتريات والموردون وتحديث المخزون","ملخص المبيعات والحركة"};
+        View.OnClickListener[] actions={v->customers(),v->invoiceHistory(),v->purchaseInvoices(),v->reports()};
         for(int i=0;i<names.length;i+=2){
             LinearLayout row=new LinearLayout(this); row.setOrientation(LinearLayout.HORIZONTAL); row.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
             for(int j=i;j<i+2&&j<names.length;j++){
@@ -236,7 +236,7 @@ public class MainActivity extends Activity {
         new AlertDialog.Builder(this).setTitle("إجراء عام").setItems(choices,(d,w)->{
             if(w==0) invoice();
             else if(w==1) customers();
-            else if(w==2) inventory();
+            else if(w==2) purchaseInvoices();
             else reports();
         }).setNegativeButton("إغلاق",null).show();
     }
@@ -557,8 +557,9 @@ public class MainActivity extends Activity {
     }
     void showBackupRestore(){
         new AlertDialog.Builder(this).setTitle("النسخ الاحتياطي والاسترجاع")
-            .setMessage("يتم حفظ نسخة يومية الساعة 11:59 مساءً داخل Download/بقالة العزيز خاص. يمكنك اختيار ملف نسخة احتياطية لاسترجاعه.")
-            .setPositiveButton("استرجاع نسخة", (d,w)->{Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("*/*");i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,8801);})
+            .setMessage("النسخة التلقائية: كل يوم الساعة 11:59 مساءً.\\n\\nيمكنك إنشاء نسخة احتياطية يدوياً الآن في أي وقت.\\nالمجلد: Download/بقالة العزيز خاص")
+            .setPositiveButton("💾 إنشاء نسخة الآن",(d,w)->{ BackupReceiver.backup(this); Toast.makeText(this,"تم إنشاء النسخة الاحتياطية وحفظها في Download/بقالة العزيز خاص",Toast.LENGTH_LONG).show(); })
+            .setNeutralButton("استرجاع نسخة",(d,w)->{Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("*/*");i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,8801);})
             .setNegativeButton("إغلاق",null).show();
     }
 
@@ -1325,6 +1326,27 @@ public class MainActivity extends Activity {
         });
         refresh[0].run();
     }
+    void purchaseInvoices(){
+        base("فواتير الشراء"); section("فاتورة شراء جديدة");
+        LinearLayout meta=new LinearLayout(this);meta.setOrientation(LinearLayout.HORIZONTAL);meta.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        TextView no=tv(String.valueOf(db.nextPurchaseNo()),15);no.setTextColor(GREEN);no.setTypeface(Typeface.DEFAULT,Typeface.BOLD);no.setGravity(Gravity.CENTER);no.setBackground(outline(Color.rgb(248,250,248),12));
+        AutoCompleteTextView supplier=new AutoCompleteTextView(this);supplier.setHint("اسم المورد");supplier.setTextSize(14);supplier.setSingleLine(true);supplier.setTextColor(TEXT);supplier.setHintTextColor(MUTED);supplier.setPadding(dp(9),dp(5),dp(9),dp(5));supplier.setBackground(outline(CARD,12));supplier.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);supplier.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);supplier.setTextDirection(View.TEXT_DIRECTION_RTL);supplier.setThreshold(1);supplier.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_dropdown_item_1line,db.supplierNames()));
+        meta.addView(no,new LinearLayout.LayoutParams(0,dp(44),.7f));meta.addView(supplier,new LinearLayout.LayoutParams(0,dp(44),1.3f));content.addView(meta);addSpace(5);
+        section("إضافة صنف للشراء");
+        AutoCompleteTextView item=new AutoCompleteTextView(this);item.setHint("اسم الصنف");item.setTextSize(13);item.setSingleLine(true);item.setTextColor(TEXT);item.setHintTextColor(MUTED);item.setPadding(dp(8),dp(4),dp(8),dp(4));item.setBackground(outline(CARD,1,10));item.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);item.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);item.setTextDirection(View.TEXT_DIRECTION_RTL);item.setThreshold(1);item.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_dropdown_item_1line,db.itemNames()));
+        EditText qty=numberField("الكمية"),cost=numberField("سعر التكلفة"),sale=numberField("سعر البيع");
+        LinearLayout inputs=new LinearLayout(this);inputs.setOrientation(LinearLayout.HORIZONTAL);inputs.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        inputs.addView(item,new LinearLayout.LayoutParams(0,dp(38),1.45f));inputs.addView(qty,new LinearLayout.LayoutParams(0,dp(38),.65f));inputs.addView(cost,new LinearLayout.LayoutParams(0,dp(38),.9f));inputs.addView(sale,new LinearLayout.LayoutParams(0,dp(38),.9f));content.addView(inputs);addSpace(4);
+        ArrayList<PurchaseLine> lines=new ArrayList<>();LinearLayout list=card();content.addView(list,new LinearLayout.LayoutParams(-1,dp(190)));
+        TextView totalLabel=tv("إجمالي الشراء: 0 ريال",18);totalLabel.setTextColor(GREEN);totalLabel.setTypeface(Typeface.DEFAULT,Typeface.BOLD);totalLabel.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);totalLabel.setBackground(bg(Color.rgb(255,249,226),10));content.addView(totalLabel,new LinearLayout.LayoutParams(-1,dp(44)));addSpace(4);
+        Button add=action("＋ إضافة الصنف إلى الفاتورة",GREEN);content.addView(add,new LinearLayout.LayoutParams(-1,dp(40)));addSpace(4);
+        Button save=action("💾 حفظ فاتورة الشراء",GOLD);content.addView(save,new LinearLayout.LayoutParams(-1,dp(42)));
+        Runnable refresh=()->{list.removeAllViews();double sum=0;for(PurchaseLine pl:lines){sum+=pl.total;LinearLayout row=new LinearLayout(this);row.setOrientation(LinearLayout.HORIZONTAL);row.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);row.setGravity(Gravity.CENTER_VERTICAL);TextView n=tv(pl.name+"\\nكمية "+fmt(pl.qty)+" • تكلفة "+fmt(pl.cost)+" • بيع "+fmt(pl.sale),11);n.setMaxLines(2);n.setEllipsize(TextUtils.TruncateAt.END);Button del=button("حذف");del.setTextColor(RED);del.setOnClickListener(v->{lines.remove(pl);refresh.run();});row.addView(n,new LinearLayout.LayoutParams(0,dp(46),1));row.addView(del,new LinearLayout.LayoutParams(dp(55),dp(38)));list.addView(row,new LinearLayout.LayoutParams(-1,dp(48)));addSpaceTo(list,3);}totalLabel.setText("إجمالي الشراء: "+fmt(sum)+" ريال");};
+        add.setOnClickListener(v->{try{String n=item.getText().toString().trim();double q=Double.parseDouble(qty.getText().toString().trim());double co=Double.parseDouble(cost.getText().toString().trim());double sa=Double.parseDouble(sale.getText().toString().trim());if(n.isEmpty()||q<=0||co<0||sa<0)throw new Exception();lines.add(new PurchaseLine(n,q,co,sa,q*co));refresh.run();item.setText("");qty.setText("1");cost.setText("");sale.setText("");item.requestFocus();}catch(Exception e){Toast.makeText(this,"أدخل بيانات الصنف بشكل صحيح",Toast.LENGTH_SHORT).show();}});
+        save.setOnClickListener(v->{try{if(lines.isEmpty()){Toast.makeText(this,"أضف صنفاً واحداً على الأقل",Toast.LENGTH_SHORT).show();return;}String sn=supplier.getText().toString().trim();if(sn.isEmpty())sn="مورد نقدي";double sum=0;for(PurchaseLine pl:lines)sum+=pl.total;db.supplier(sn,"");long pid=db.addPurchase(String.valueOf(no.getText()),sn,sum,db.now());db.replacePurchaseLines(pid,lines);db.updateStockFromPurchase(lines);Toast.makeText(this,"تم حفظ فاتورة الشراء وتحديث المخزون",Toast.LENGTH_LONG).show();purchaseInvoices();}catch(Exception e){Toast.makeText(this,"تعذر حفظ فاتورة الشراء",Toast.LENGTH_LONG).show();}});
+        refresh.run();
+    }
+    static class PurchaseLine{String name;double qty,cost,sale,total;PurchaseLine(String n,double q,double c,double s,double t){name=n;qty=q;cost=c;sale=s;total=t;}}
     void reports(){
         base("التقارير");
         section("ملخص التقارير والحركة");
@@ -1496,10 +1518,10 @@ public class MainActivity extends Activity {
     }
 
     static class DB extends SQLiteOpenHelper{
-        DB(Context c){super(c,"enezi.db",null,7);}
+        DB(Context c){super(c,"enezi.db",null,8);}
         public void onCreate(SQLiteDatabase d){create(d);}
-        void create(SQLiteDatabase d){d.execSQL("CREATE TABLE customers(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,phone TEXT)");d.execSQL("CREATE TABLE invoices(id INTEGER PRIMARY KEY AUTOINCREMENT,no TEXT,customer TEXT,total REAL,paid REAL DEFAULT 0,date TEXT)");d.execSQL("CREATE TABLE transactions(id INTEGER PRIMARY KEY AUTOINCREMENT,customer_id INTEGER,amount REAL,details TEXT,type INTEGER,date TEXT)");d.execSQL("CREATE TABLE items(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT,qty REAL,min_qty REAL)");d.execSQL("CREATE TABLE invoice_items(id INTEGER PRIMARY KEY AUTOINCREMENT,invoice_id INTEGER,name TEXT,qty REAL,total REAL)");}
-        public void onUpgrade(SQLiteDatabase d,int o,int n){if(o<6){try{d.execSQL("ALTER TABLE customers ADD COLUMN phone TEXT");}catch(Exception ignored){}}if(o<7){try{d.execSQL("ALTER TABLE invoices ADD COLUMN paid REAL DEFAULT 0");}catch(Exception ignored){}}if(o<2){try{d.execSQL("ALTER TABLE invoices ADD COLUMN date TEXT");}catch(Exception ignored){}}if(o<5){d.execSQL("CREATE TABLE IF NOT EXISTS invoice_items(id INTEGER PRIMARY KEY AUTOINCREMENT,invoice_id INTEGER,name TEXT,qty REAL,total REAL)");}}
+        void create(SQLiteDatabase d){d.execSQL("CREATE TABLE customers(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,phone TEXT)");d.execSQL("CREATE TABLE invoices(id INTEGER PRIMARY KEY AUTOINCREMENT,no TEXT,customer TEXT,total REAL,paid REAL DEFAULT 0,date TEXT)");d.execSQL("CREATE TABLE transactions(id INTEGER PRIMARY KEY AUTOINCREMENT,customer_id INTEGER,amount REAL,details TEXT,type INTEGER,date TEXT)");d.execSQL("CREATE TABLE items(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT,qty REAL,min_qty REAL,cost REAL DEFAULT 0,sale REAL DEFAULT 0)");d.execSQL("CREATE TABLE invoice_items(id INTEGER PRIMARY KEY AUTOINCREMENT,invoice_id INTEGER,name TEXT,qty REAL,total REAL)");}
+        public void onUpgrade(SQLiteDatabase d,int o,int n){if(o<6){try{d.execSQL("ALTER TABLE customers ADD COLUMN phone TEXT");}catch(Exception ignored){}}if(o<7){try{d.execSQL("ALTER TABLE invoices ADD COLUMN paid REAL DEFAULT 0");}catch(Exception ignored){}}if(o<2){try{d.execSQL("ALTER TABLE invoices ADD COLUMN date TEXT");}catch(Exception ignored){}}if(o<5){d.execSQL("CREATE TABLE IF NOT EXISTS invoice_items(id INTEGER PRIMARY KEY AUTOINCREMENT,invoice_id INTEGER,name TEXT,qty REAL,total REAL)");}if(o<8){try{d.execSQL("ALTER TABLE items ADD COLUMN cost REAL DEFAULT 0");}catch(Exception ignored){}try{d.execSQL("ALTER TABLE items ADD COLUMN sale REAL DEFAULT 0");}catch(Exception ignored){}d.execSQL("CREATE TABLE IF NOT EXISTS suppliers(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,phone TEXT)");d.execSQL("CREATE TABLE IF NOT EXISTS purchase_invoices(id INTEGER PRIMARY KEY AUTOINCREMENT,no TEXT,supplier TEXT,total REAL,paid REAL DEFAULT 0,date TEXT)");d.execSQL("CREATE TABLE IF NOT EXISTS purchase_items(id INTEGER PRIMARY KEY AUTOINCREMENT,purchase_id INTEGER,name TEXT,qty REAL,cost REAL,sale REAL,total REAL)");}}
         String now(){return new SimpleDateFormat("yyyy-MM-dd HH:mm",Locale.US).format(new Date());}
         long customer(String n){Cursor c=getReadableDatabase().rawQuery("SELECT id FROM customers WHERE name=?",new String[]{n});if(c.moveToFirst()){long x=c.getLong(0);c.close();return x;}c.close();ContentValues v=new ContentValues();v.put("name",n);return getWritableDatabase().insert("customers",null,v);}
         void updateCustomer(long id,String oldName,String newName,String phone){
@@ -1513,6 +1535,13 @@ public class MainActivity extends Activity {
         double balance(long id){Cursor c=getReadableDatabase().rawQuery("SELECT COALESCE(SUM(CASE WHEN type=1 THEN amount ELSE -amount END),0) FROM transactions WHERE customer_id=?",new String[]{String.valueOf(id)});double x=c.moveToFirst()?c.getDouble(0):0;c.close();return x;}
         Cursor customers(String q){return getReadableDatabase().rawQuery("SELECT id,name,COALESCE(phone,'') FROM customers WHERE name LIKE ? OR phone LIKE ? ORDER BY name",new String[]{"%"+q+"%","%"+q+"%"});}
         Cursor transactions(long id){return getReadableDatabase().rawQuery("SELECT id,date,details,amount,type FROM transactions WHERE customer_id=? ORDER BY datetime(date) DESC, id DESC",new String[]{String.valueOf(id)});}
+        int nextPurchaseNo(){Cursor c=getReadableDatabase().rawQuery("SELECT COALESCE(MAX(CAST(no AS INTEGER)),0)+1 FROM purchase_invoices",null);int x=c.moveToFirst()?c.getInt(0):1;c.close();return x;}
+        String[] supplierNames(){Cursor c=getReadableDatabase().rawQuery("SELECT name FROM suppliers ORDER BY name",null);ArrayList<String>a=new ArrayList<>();while(c.moveToNext())a.add(c.getString(0));c.close();return a.toArray(new String[0]);}
+        long supplier(String n,String p){Cursor c=getReadableDatabase().rawQuery("SELECT id FROM suppliers WHERE name=? LIMIT 1",new String[]{n});if(c.moveToFirst()){long x=c.getLong(0);c.close();return x;}c.close();ContentValues v=new ContentValues();v.put("name",n);v.put("phone",p);return getWritableDatabase().insert("suppliers",null,v);}
+        long addPurchase(String no,String supplier,double total,String date){ContentValues v=new ContentValues();v.put("no",no);v.put("supplier",supplier);v.put("total",total);v.put("date",date);return getWritableDatabase().insert("purchase_invoices",null,v);}
+        void replacePurchaseLines(long id,ArrayList<PurchaseLine> ls){SQLiteDatabase d=getWritableDatabase();for(PurchaseLine l:ls){ContentValues v=new ContentValues();v.put("purchase_id",id);v.put("name",l.name);v.put("qty",l.qty);v.put("cost",l.cost);v.put("sale",l.sale);v.put("total",l.total);d.insert("purchase_items",null,v);}}
+        void updateStockFromPurchase(ArrayList<PurchaseLine> ls){SQLiteDatabase d=getWritableDatabase();for(PurchaseLine l:ls){Cursor c=d.rawQuery("SELECT id,qty FROM items WHERE name=? LIMIT 1",new String[]{l.name});if(c.moveToFirst()){long id=c.getLong(0);double q=c.getDouble(1);c.close();ContentValues v=new ContentValues();v.put("qty",q+l.qty);v.put("cost",l.cost);v.put("sale",l.sale);d.update("items",v,"id=?",new String[]{String.valueOf(id)});}else{c.close();ContentValues v=new ContentValues();v.put("name",l.name);v.put("qty",l.qty);v.put("min_qty",0);v.put("cost",l.cost);v.put("sale",l.sale);d.insert("items",null,v);}}}
+        String[] itemNames(){Cursor c=getReadableDatabase().rawQuery("SELECT name FROM items ORDER BY name",null);ArrayList<String>a=new ArrayList<>();while(c.moveToNext())a.add(c.getString(0));c.close();return a.toArray(new String[0]);}
         Cursor items(){return getReadableDatabase().rawQuery("SELECT id,name,qty,min_qty FROM items ORDER BY name",null);}
         boolean itemExists(String n){Cursor c=getReadableDatabase().rawQuery("SELECT id FROM items WHERE name=? LIMIT 1",new String[]{n});boolean x=c.moveToFirst();c.close();return x;}
         void addItem(String n,double q,double m){if(n.isEmpty()||q<0||m<0)throw new IllegalArgumentException();SQLiteDatabase d=getWritableDatabase();Cursor c=d.rawQuery("SELECT id FROM items WHERE name=? LIMIT 1",new String[]{n});if(c.moveToFirst()){long id=c.getLong(0);c.close();ContentValues v=new ContentValues();v.put("qty",q);v.put("min_qty",m);d.update("items",v,"id=?",new String[]{String.valueOf(id)});return;}c.close();ContentValues v=new ContentValues();v.put("name",n);v.put("qty",q);v.put("min_qty",m);d.insert("items",null,v);}
