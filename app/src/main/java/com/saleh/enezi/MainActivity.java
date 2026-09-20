@@ -819,7 +819,7 @@ public class MainActivity extends Activity {
                 String invNo=db.invoiceNoFromTransaction(d);
                 if(!TextUtils.isEmpty(invNo)){TextView iv=tv(db.invoiceCompactDetails(invNo),10);iv.setTextColor(MUTED);iv.setMaxLines(4);iv.setEllipsize(null);r.addView(iv,new LinearLayout.LayoutParams(-1,dp(44)));}
                 check.setOnCheckedChangeListener((b,is)->{if(is){if(!selected.contains(tid))selected.add(tid);}else selected.remove(tid);});
-                r.setOnClickListener(v->showOperationDetails(customerName,tid,d,a,type));
+                r.setOnClickListener(v->showOperationDetails(name,tid,d,a,type));
                 r.setOnLongClickListener(v->{operationActions(id,name,tid,d,a,type);return true;});
                 history.addView(r,new LinearLayout.LayoutParams(-1,-2));addSpaceTo(history,6);
                 runningAfter-=(type==1?a:-a);
