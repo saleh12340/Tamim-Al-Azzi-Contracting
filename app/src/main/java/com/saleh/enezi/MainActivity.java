@@ -836,6 +836,52 @@ public class MainActivity extends Activity {
             content.addView(r,new LinearLayout.LayoutParams(-1,dp(78))); addSpace(3);
         } c.close();
     }
+    void showPurchaseInvoiceDialog(long id,String no,String supplier,double total,String date){
+        LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(10),dp(5),dp(10),dp(5));
+        TextView head=tv("فاتورة شراء رقم "+no,18);head.setTextColor(GOLD);head.setTypeface(Typeface.DEFAULT,Typeface.BOLD);head.setGravity(Gravity.CENTER);box.addView(head,new LinearLayout.LayoutParams(-1,dp(38)));
+        box.addView(tv("المورد: "+(supplier==null||supplier.isEmpty()?"بدون مورد":supplier)+"\nالتاريخ والوقت: "+date,12),new LinearLayout.LayoutParams(-1,dp(50)));
+        sectionInside(box,"الأصناف");
+        Cursor c=db.purchaseLines(id);int count=0;
+        while(c.moveToNext()){
+            String n=c.getString(1);double q=c.getDouble(2),cost=c.getDouble(3),sale=c.getDouble(4),t=c.getDouble(5);
+            TextView row=tv(n+"  ×  "+fmt(q)+"  |  تكلفة الوحدة: "+fmt(cost)+"  |  البيع: "+fmt(sale)+"  |  "+fmt(t)+" ريال",10);
+            row.setBackground(outline(Color.rgb(248,250,248),8));row.setMaxLines(3);row.setEllipsize(null);box.addView(row,new LinearLayout.LayoutParams(-1,dp(42)));count++;
+        }
+        c.close();if(count==0)box.addView(tv("لا توجد تفاصيل أصناف محفوظة لهذه الفاتورة.",11),new LinearLayout.LayoutParams(-1,dp(34)));
+        TextView totalV=tv("الإجمالي: "+fmt(total)+" ريال",17);totalV.setTextColor(GREEN);totalV.setTypeface(Typeface.DEFAULT,Typeface.BOLD);box.addView(totalV,new LinearLayout.LayoutParams(-1,dp(42)));
+        AlertDialog dialog=new AlertDialog.Builder(this).setTitle("فاتورة الشراء").setView(box)
+            .setPositiveButton("مشاركة",null).setNeutralButton("طباعة",null).setNegativeButton("إغلاق",null).create();
+        dialog.setOnShowListener(x->{
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{dialog.dismiss();sharePurchaseInvoice(id,no,supplier,total,date);});
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v->{dialog.dismiss();printPurchaseInvoice(id,no,supplier,total,date);});
+        });
+        dialog.show();
+    }
+
+    ArrayList<PurchaseLine> loadPurchaseLines(long id){
+        ArrayList<PurchaseLine> ls=new ArrayList<>();Cursor c=db.purchaseLines(id);
+        while(c.moveToNext())ls.add(new PurchaseLine(c.getString(1),c.getDouble(2),c.getDouble(5),c.getDouble(3),c.getDouble(4)));
+        c.close();return ls;
+    }
+    String purchaseReceiptText(String no,String supplier,ArrayList<PurchaseLine> lines,double total,String date){
+        StringBuilder s=new StringBuilder("بقالة العزي\nفاتورة شراء رقم: ").append(no).append("\nالمورد: ").append(supplier==null||supplier.isEmpty()?"بدون مورد":supplier).append("\nالتاريخ: ").append(date).append("\n");
+        s.append("------------------------------------------------\nالصنف | الكمية | سعر الوحدة | سعر البيع | الإجمالي\n");
+        for(PurchaseLine l:lines)s.append(l.name).append(" | ").append(fmt(l.qty)).append(" | ").append(fmt(l.cost)).append(" | ").append(fmt(l.sale)).append(" | ").append(fmt(l.total)).append("\n");
+        s.append("------------------------------------------------\nالإجمالي: ").append(fmt(total)).append(" ريال\nشكراً لتعاملكم معنا");
+        return s.toString();
+    }
+    void sharePurchaseInvoice(long id,String no,String supplier,double total,String date){
+        try{
+            String text=purchaseReceiptText(no,supplier,loadPurchaseLines(id),total,date);
+            String phone=db.supplierPhoneByName(supplier);
+            shareWhatsAppToCustomer(phone,text,null);
+        }catch(Exception e){shareText(purchaseReceiptText(no,supplier,loadPurchaseLines(id),total,date));}
+    }
+    void printPurchaseInvoice(long id,String no,String supplier,double total,String date){
+        try{printTextBluetooth(purchaseReceiptText(no,supplier,loadPurchaseLines(id),total,date));}
+        catch(Exception e){Toast.makeText(this,"تعذر تجهيز فاتورة الشراء للطباعة",Toast.LENGTH_LONG).show();}
+    }
+
     String receiptText(String no,String customer,LinearLayout rows,double total,long cid){StringBuilder s=new StringBuilder("بقالة العزي\nفاتورة رقم: ").append(no).append("\nالتاريخ: ").append(db.now()).append("\n");if(!customer.isEmpty())s.append("العميل: ").append(customer).append("\n");s.append("------------------------------\n");for(int i=0;i<rows.getChildCount();i++){View ch=rows.getChildAt(i);if(ch instanceof LinearLayout){LinearLayout r=(LinearLayout)ch;StringBuilder q=new StringBuilder();for(int j=0;j<r.getChildCount();j++){View x=r.getChildAt(j);if(x instanceof TextView){String z=((TextView)x).getText().toString().trim();if(!z.isEmpty()){if(q.length()>0)q.append(" | ");q.append(z);}}}if(q.length()>0)s.append(q).append("\n");}}s.append("------------------------------\nالإجمالي: ").append(fmt(total)).append(" ريال\n");if(cid>0)s.append(balanceText(db.balance(cid))).append("\n");s.append("شكراً لتعاملكم معنا");return s.toString();}
     int balanceColor(double balance){if(balance>0.005)return RED;if(balance<-0.005)return BLUE;return GREEN;}
     String balanceText(double b){double x=Math.abs(b)<0.005?0:b;if(x>0)return "رصيدكم عليكم: "+fmt(x)+" ريال";if(x<0)return "رصيدكم لكم: "+fmt(Math.abs(x))+" ريال";return "رصيدكم عليكم: 0 ريال";}
@@ -1402,7 +1448,9 @@ public class MainActivity extends Activity {
             long id=c.getLong(0);String no=c.getString(1),supplier=c.getString(2),date=c.getString(4);double total=c.getDouble(3);
             LinearLayout row=card();row.setPadding(dp(7),dp(4),dp(7),dp(4));
             TextView info=tv("فاتورة شراء رقم "+no+"  •  "+(supplier==null||supplier.isEmpty()?"بدون مورد":supplier)+"\nالإجمالي: "+fmt(total)+" ريال  •  "+date,12);info.setMaxLines(2);info.setEllipsize(null);
-            row.addView(info,new LinearLayout.LayoutParams(-1,dp(46)));list.addView(row,new LinearLayout.LayoutParams(-1,dp(60)));addSpaceTo(list,3);
+            row.addView(info,new LinearLayout.LayoutParams(-1,dp(46)));
+            row.setOnClickListener(v->showPurchaseInvoiceDialog(id,no,supplier,total,date));
+            list.addView(row,new LinearLayout.LayoutParams(-1,dp(60)));addSpaceTo(list,3);
         }
         c.close();
     }
@@ -1498,13 +1546,13 @@ public class MainActivity extends Activity {
                 final String fd=date==null?"":date;
                 final long fid=sortId;
                 int operationType=c.getInt(6);
-                int activityColor=(kind==2 && operationType==1)?RED:BLUE;
+                int activityColor=(kind==3)?GOLD:((kind==2 && operationType==1)?RED:BLUE);
 
                 LinearLayout row=card();
                 row.setPadding(dp(7),dp(kind==1?5:3),dp(7),dp(kind==1?5:3));
                 row.setElevation(dp(1));
 
-                String label=kind==1?"🧾 فاتورة":"عملية";
+                String label=kind==1?"🧾 فاتورة":(kind==3?"🛒 فاتورة شراء":"عملية");
                 String shortTitle=ft;
                 TextView main=tv(label+"  •  "+shortTitle,kind==1?13:11);
                 main.setTextColor(kind==1?GREEN:activityColor);
@@ -1517,7 +1565,11 @@ public class MainActivity extends Activity {
                 meta.setMaxLines(1);meta.setEllipsize(null);
                 row.addView(meta,new LinearLayout.LayoutParams(-1,dp(22)));
 
-                row.setOnClickListener(v->showReportActivityDetails(fk,fr,ft,fa,fd,fid));
+                row.setOnClickListener(v->{
+                    if(fk==3){
+                        showPurchaseInvoiceDialog(fid,fr,db.purchaseSupplier(fid),fa,fd);
+                    }else showReportActivityDetails(fk,fr,ft,fa,fd,fid);
+                });
                 if(kind==1){
                     row.setBackground(outlined(Color.rgb(250,253,250),1,12));
                     content.addView(row,new LinearLayout.LayoutParams(-1,dp(66)));
@@ -1536,6 +1588,7 @@ public class MainActivity extends Activity {
         }
     }
 
+    // فواتير الشراء تُعرض في التقارير بنفس أسلوب فواتير البيع.
     void showReportActivityDetails(int kind,String ref,String title,double amount,String date,long sortId){
         try{
             LinearLayout box=new LinearLayout(this);
@@ -1639,10 +1692,10 @@ public class MainActivity extends Activity {
     }
 
     static class DB extends SQLiteOpenHelper{
-        DB(Context c){super(c,"enezi.db",null,8);}
+        DB(Context c){super(c,"enezi.db",null,9);}
         public void onCreate(SQLiteDatabase d){create(d);}
-        void create(SQLiteDatabase d){d.execSQL("CREATE TABLE customers(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,phone TEXT)");d.execSQL("CREATE TABLE invoices(id INTEGER PRIMARY KEY AUTOINCREMENT,no TEXT,customer TEXT,total REAL,paid REAL DEFAULT 0,date TEXT)");d.execSQL("CREATE TABLE transactions(id INTEGER PRIMARY KEY AUTOINCREMENT,customer_id INTEGER,amount REAL,details TEXT,type INTEGER,date TEXT)");d.execSQL("CREATE TABLE items(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT,qty REAL,min_qty REAL,cost REAL DEFAULT 0,sale REAL DEFAULT 0)");d.execSQL("CREATE TABLE invoice_items(id INTEGER PRIMARY KEY AUTOINCREMENT,invoice_id INTEGER,name TEXT,qty REAL,total REAL)");}
-        public void onUpgrade(SQLiteDatabase d,int o,int n){if(o<6){try{d.execSQL("ALTER TABLE customers ADD COLUMN phone TEXT");}catch(Exception ignored){}}if(o<7){try{d.execSQL("ALTER TABLE invoices ADD COLUMN paid REAL DEFAULT 0");}catch(Exception ignored){}}if(o<2){try{d.execSQL("ALTER TABLE invoices ADD COLUMN date TEXT");}catch(Exception ignored){}}if(o<5){d.execSQL("CREATE TABLE IF NOT EXISTS invoice_items(id INTEGER PRIMARY KEY AUTOINCREMENT,invoice_id INTEGER,name TEXT,qty REAL,total REAL)");}if(o<8){try{d.execSQL("ALTER TABLE items ADD COLUMN cost REAL DEFAULT 0");}catch(Exception ignored){}try{d.execSQL("ALTER TABLE items ADD COLUMN sale REAL DEFAULT 0");}catch(Exception ignored){}d.execSQL("CREATE TABLE IF NOT EXISTS suppliers(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,phone TEXT)");d.execSQL("CREATE TABLE IF NOT EXISTS purchase_invoices(id INTEGER PRIMARY KEY AUTOINCREMENT,no TEXT,supplier TEXT,total REAL,paid REAL DEFAULT 0,date TEXT)");d.execSQL("CREATE TABLE IF NOT EXISTS purchase_items(id INTEGER PRIMARY KEY AUTOINCREMENT,purchase_id INTEGER,name TEXT,qty REAL,cost REAL,sale REAL,total REAL)");}}
+        void create(SQLiteDatabase d){d.execSQL("CREATE TABLE customers(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,phone TEXT)");d.execSQL("CREATE TABLE invoices(id INTEGER PRIMARY KEY AUTOINCREMENT,no TEXT,customer TEXT,total REAL,paid REAL DEFAULT 0,date TEXT)");d.execSQL("CREATE TABLE transactions(id INTEGER PRIMARY KEY AUTOINCREMENT,customer_id INTEGER,amount REAL,details TEXT,type INTEGER,date TEXT)");d.execSQL("CREATE TABLE items(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT,qty REAL,min_qty REAL,cost REAL DEFAULT 0,sale REAL DEFAULT 0)");d.execSQL("CREATE TABLE invoice_items(id INTEGER PRIMARY KEY AUTOINCREMENT,invoice_id INTEGER,name TEXT,qty REAL,total REAL)");d.execSQL("CREATE TABLE IF NOT EXISTS suppliers(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,phone TEXT)");d.execSQL("CREATE TABLE IF NOT EXISTS purchase_invoices(id INTEGER PRIMARY KEY AUTOINCREMENT,no TEXT,supplier TEXT,total REAL,paid REAL DEFAULT 0,date TEXT)");d.execSQL("CREATE TABLE IF NOT EXISTS purchase_items(id INTEGER PRIMARY KEY AUTOINCREMENT,purchase_id INTEGER,name TEXT,qty REAL,cost REAL,sale REAL,total REAL)");}
+        public void onUpgrade(SQLiteDatabase d,int o,int n){if(o<6){try{d.execSQL("ALTER TABLE customers ADD COLUMN phone TEXT");}catch(Exception ignored){}}if(o<7){try{d.execSQL("ALTER TABLE invoices ADD COLUMN paid REAL DEFAULT 0");}catch(Exception ignored){}}if(o<2){try{d.execSQL("ALTER TABLE invoices ADD COLUMN date TEXT");}catch(Exception ignored){}}if(o<5){d.execSQL("CREATE TABLE IF NOT EXISTS invoice_items(id INTEGER PRIMARY KEY AUTOINCREMENT,invoice_id INTEGER,name TEXT,qty REAL,total REAL)");}if(o<8){try{d.execSQL("ALTER TABLE items ADD COLUMN cost REAL DEFAULT 0");}catch(Exception ignored){}try{d.execSQL("ALTER TABLE items ADD COLUMN sale REAL DEFAULT 0");}catch(Exception ignored){}}if(o<9){d.execSQL("CREATE TABLE IF NOT EXISTS suppliers(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,phone TEXT)");d.execSQL("CREATE TABLE IF NOT EXISTS purchase_invoices(id INTEGER PRIMARY KEY AUTOINCREMENT,no TEXT,supplier TEXT,total REAL,paid REAL DEFAULT 0,date TEXT)");d.execSQL("CREATE TABLE IF NOT EXISTS purchase_items(id INTEGER PRIMARY KEY AUTOINCREMENT,purchase_id INTEGER,name TEXT,qty REAL,cost REAL,sale REAL,total REAL)");}}
         String now(){return new SimpleDateFormat("yyyy-MM-dd HH:mm",Locale.US).format(new Date());}
         long customer(String n){Cursor c=getReadableDatabase().rawQuery("SELECT id FROM customers WHERE name=?",new String[]{n});if(c.moveToFirst()){long x=c.getLong(0);c.close();return x;}c.close();ContentValues v=new ContentValues();v.put("name",n);return getWritableDatabase().insert("customers",null,v);}
         void updateCustomer(long id,String oldName,String newName,String phone){
@@ -1671,6 +1724,9 @@ public class MainActivity extends Activity {
         int transactionCount(long id){Cursor c=getReadableDatabase().rawQuery("SELECT COUNT(*) FROM transactions WHERE customer_id=?",new String[]{String.valueOf(id)});int x=c.moveToFirst()?c.getInt(0):0;c.close();return x;}
         String invoiceNoFromTransaction(String details){if(details==null)return "";String p="فاتورة مبيعات رقم ";return details.startsWith(p)?details.substring(p.length()).trim():"";}
         String invoiceCompactDetails(String no){Cursor c=getReadableDatabase().rawQuery("SELECT name,qty,total FROM invoice_items WHERE invoice_id=(SELECT id FROM invoices WHERE no=? ORDER BY id DESC LIMIT 1) ORDER BY id",new String[]{no});StringBuilder s=new StringBuilder("تفاصيل: ");int n=0;while(c.moveToNext()&&n<6){if(n>0)s.append(" • ");s.append(c.getString(0)).append(" × ").append(fmt(c.getDouble(1))).append(" = ").append(fmt(c.getDouble(2)));n++;}c.close();return n==0?"تفاصيل الفاتورة غير متاحة":s.toString();}
+        Cursor purchaseLines(long id){return getReadableDatabase().rawQuery("SELECT id,name,qty,cost,sale,total FROM purchase_items WHERE purchase_id=? ORDER BY id",new String[]{String.valueOf(id)});}
+        String purchaseSupplier(long id){Cursor c=getReadableDatabase().rawQuery("SELECT COALESCE(supplier,'') FROM purchase_invoices WHERE id=?",new String[]{String.valueOf(id)});String x=c.moveToFirst()?c.getString(0):"";c.close();return x==null?"":x;}
+        String supplierPhoneByName(String n){Cursor c=getReadableDatabase().rawQuery("SELECT COALESCE(phone,'') FROM suppliers WHERE name=? ORDER BY id DESC LIMIT 1",new String[]{n==null?"":n});String x=c.moveToFirst()?c.getString(0):"";c.close();return x==null?"":x;}
         Cursor invoices(){return getReadableDatabase().rawQuery("SELECT id,no,customer,total,date FROM invoices ORDER BY datetime(date) DESC, id DESC LIMIT 100",null);}
         Cursor recentActivity(){
             android.database.MatrixCursor out=new android.database.MatrixCursor(
@@ -1701,6 +1757,15 @@ public class MainActivity extends Activity {
                     rows.add(new Object[]{2,String.valueOf(tr.getLong(0)),title,tr.getDouble(2),tr.getString(3),tr.getLong(0),tr.getInt(6)});
                 }
             }finally{if(tr!=null)tr.close();}
+            Cursor pinv=null;
+            try{
+                pinv=d.rawQuery("SELECT id,no,supplier,COALESCE(total,0),COALESCE(date,''),id FROM purchase_invoices",null);
+                while(pinv.moveToNext()){
+                    long id=pinv.getLong(0);String no=pinv.getString(1)==null?"":pinv.getString(1);String supplier=pinv.getString(2);
+                    if(supplier==null||supplier.trim().isEmpty())supplier="بدون مورد";
+                    rows.add(new Object[]{3,no,"فاتورة شراء "+no+" • "+supplier,pinv.getDouble(3),pinv.getString(4),id,0});
+                }
+            }finally{if(pinv!=null)pinv.close();}
             Collections.sort(rows,(a,b)->{
                 String da=(String)a[4], dbb=(String)b[4];
                 int x=dbb.compareTo(da);
