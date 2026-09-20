@@ -38,10 +38,10 @@ public class MainActivity extends Activity {
     }
     EditText field(String h){
         EditText e=new EditText(this); e.setHint(h); e.setTextSize(textSize); e.setSingleLine(true);
-        e.setTextColor(TEXT); e.setHintTextColor(MUTED); e.setPadding(14,7,14,7);
+        e.setTextColor(TEXT); e.setHintTextColor(MUTED); e.setPadding(14,7,14,7); e.setBackgroundColor(Color.WHITE); e.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
         e.setBackgroundColor(CARD); e.setLayoutDirection(View.LAYOUT_DIRECTION_RTL); e.setTextDirection(View.TEXT_DIRECTION_RTL);
-        e.setSelectAllOnFocus(true);
-        e.setOnFocusChangeListener((v,has)->{ if(has) e.postDelayed(e::selectAll,60); });
+        e.setSelectAllOnFocus(true); e.setOnClickListener(v -> e.selectAll());
+        e.setOnFocusChangeListener((v,has)->{ if(has) e.postDelayed(() -> { e.selectAll(); },60); });
         return e;
     }
     void addField(EditText e){content.addView(e,new LinearLayout.LayoutParams(-1,52)); addSpace(6);}
@@ -114,7 +114,7 @@ public class MainActivity extends Activity {
         TextView total=tv("الإجمالي  0 ريال",23);total.setTextColor(GREEN);total.setTypeface(Typeface.DEFAULT,Typeface.BOLD);total.setGravity(Gravity.CENTER);total.setBackgroundColor(Color.rgb(255,249,226));content.addView(total,new LinearLayout.LayoutParams(-1,62));addSpace(7);
         LinearLayout rows=new LinearLayout(this);rows.setOrientation(LinearLayout.VERTICAL);content.addView(rows);final double[] sum={0};
         totalLine.setInputType(2|8192);qty.setInputType(2|8192);
-        add.setOnClickListener(v->{try{String n=item.getText().toString().trim();double q=Double.parseDouble(qty.getText().toString()),t=Double.parseDouble(totalLine.getText().toString());if(n.isEmpty()||q<=0||t<0)throw new Exception();double p=t/q;unit.setText("سعر الوحدة: "+fmt(p)+" ريال");sum[0]+=t;TextView r=tv(n+"   |   "+fmt(q)+"   |   "+fmt(p)+"   |   "+fmt(t)+" ريال",14);r.setPadding(8,7,8,7);rows.addView(r);total.setText("الإجمالي  "+fmt(sum[0])+" ريال");item.setText("");qty.setText("1");totalLine.setText("");item.requestFocus();}catch(Exception e){Toast.makeText(this,"أدخل الإجمالي والكمية واسم الصنف",Toast.LENGTH_SHORT).show();}});
+        add.setOnClickListener(v->{try{String n=item.getText().toString().trim();double q=Double.parseDouble(qty.getText().toString()),t=Double.parseDouble(totalLine.getText().toString());if(n.isEmpty()||q<=0||t<0)throw new Exception();double p=t/q;unit.setText("سعر الوحدة: "+fmt(p)+" ريال");sum[0]+=t;TextView r=tv(n+"   |   "+fmt(q)+"   |   "+fmt(p)+"   |   "+fmt(t)+" ريال",14);r.setPadding(8,7,8,7);rows.addView(r);total.setText("الإجمالي  "+fmt(sum[0])+" ريال");item.setText("");qty.setText("1");totalLine.setText("");item.requestFocus(); item.selectAll();}catch(Exception e){Toast.makeText(this,"أدخل الإجمالي والكمية واسم الصنف",Toast.LENGTH_SHORT).show();}});
         Button clear=button("مسح الأصناف");clear.setTextColor(MUTED);content.addView(clear);clear.setOnClickListener(v->{rows.removeAllViews();sum[0]=0;total.setText("الإجمالي  0 ريال");});
         Button save=button("💾  حفظ الفاتورة");save.setTextColor(Color.WHITE);save.setBackgroundColor(GREEN);content.addView(save,new LinearLayout.LayoutParams(-1,50));addSpace(5);
         Button print=button("🖨  معاينة إيصال 58mm");content.addView(print,new LinearLayout.LayoutParams(-1,46));
