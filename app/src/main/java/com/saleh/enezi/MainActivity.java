@@ -296,7 +296,9 @@ public class MainActivity extends Activity {
         boxTotal.setPadding(dp(10),dp(4),dp(10),dp(4));
         boxTotal.setBackground(bg(Color.rgb(255,249,226),12));
         invoiceBox.addView(boxTotal,new LinearLayout.LayoutParams(-1,dp(48)));
-        content.addView(invoiceBox,new LinearLayout.LayoutParams(-1,-2)); space(6);
+        TextView remainingLabel=tv("المتبقي: 0 ريال",12);remainingLabel.setTextColor(MUTED);remainingLabel.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);remainingLabel.setPadding(dp(10),0,dp(10),0);
+        invoiceBox.addView(remainingLabel,new LinearLayout.LayoutParams(-1,dp(30)));
+        content.addView(invoiceBox,new LinearLayout.LayoutParams(-1,-2)); space(5);
 
         final ArrayList<Line> lines=new ArrayList<>();
         if(edit){Cursor c=db.invoiceLines(invoiceId);while(c.moveToNext())lines.add(new Line(c.getString(1),c.getDouble(2),c.getDouble(3)));c.close();}
@@ -306,6 +308,9 @@ public class MainActivity extends Activity {
             double run=0,baseBal=db.balanceByName(customer.getText().toString().trim());
             for(Line l:lines){run+=l.total;addRow(rows,l,run,baseBal,lines);}
             boxTotal.setText("الإجمالي: "+fmt(run)+" ريال");
+            double currentBalance=customer.getText().toString().trim().isEmpty()?0:db.balanceByName(customer.getText().toString().trim());
+            double remaining=currentBalance+run;if(Math.abs(remaining)<0.005)remaining=0;
+            remainingLabel.setText("المتبقي: "+fmt(remaining)+" ريال");
         };
 
         add.setOnClickListener(v->{
@@ -343,7 +348,9 @@ public class MainActivity extends Activity {
             showPhoneDialog(cn,no.getText().toString(),lines,totalOf(lines),edit,invoiceId);
         });
         print.setOnClickListener(v->preview(no.getText().toString(),customer.getText().toString(),lines,totalOf(lines)));
-        item.setOnEditorActionListener((v,a,e)->{add.performClick();return true;});        redraw.run();
+        item.setOnEditorActionListener((v,a,e)->{add.performClick();return true;});
+        customer.addTextChangedListener(new android.text.TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int c,int a){}public void onTextChanged(CharSequence s,int st,int b,int c){redraw.run();}public void afterTextChanged(android.text.Editable e){}});
+        redraw.run();
     }
 
     double totalOf(ArrayList<Line> ls){double x=0;for(Line l:ls)x+=l.total;return x;}
@@ -853,14 +860,14 @@ public class MainActivity extends Activity {
         add.setOnClickListener(v->{try{db.addItem(name.getText().toString().trim(),Double.parseDouble(qty.getText().toString()),Double.parseDouble(min.getText().toString()));name.setText("");qty.setText("");min.setText("");refresh.run();}catch(Exception e){Toast.makeText(this,"أدخل بيانات الصنف بشكل صحيح",Toast.LENGTH_SHORT).show();}});refresh.run();
     }
     void reports(){
-        base("التقارير"); section("ملخص سريع");
+        base("التقارير");section("ملخص سريع");
         cardTitle("المبيعات","عدد الفواتير: "+db.invoiceCount()+"   •   إجمالي المبيعات: "+fmt(db.sales())+" ريال");
         cardTitle("العملاء","عدد العملاء: "+db.customerCount());
-        section("أحدث الفواتير والعمليات");
-        Cursor c=db.invoices();
+        section("كل الفواتير والعمليات — الأحدث أولاً");
+        Cursor c=db.recentActivity();
         while(c.moveToNext()){
-            TextView v=tv("فاتورة "+c.getString(1)+"  •  "+(c.getString(2)==null||c.getString(2).isEmpty()?"نقدي":c.getString(2))+"\n"+fmt(c.getDouble(3))+" ريال  •  "+c.getString(4),12);
-            v.setMaxLines(2);v.setEllipsize(TextUtils.TruncateAt.END);v.setBackground(outline(CARD,8));content.addView(v,new LinearLayout.LayoutParams(-1,dp(48)));addSpace(3);
+            String title=c.getString(2),date=c.getString(4);double amount=c.getDouble(3);
+            TextView v=tv(title+"\n"+fmt(amount)+" ريال  •  "+date,11);v.setMaxLines(2);v.setEllipsize(TextUtils.TruncateAt.END);v.setBackground(outline(CARD,8));content.addView(v,new LinearLayout.LayoutParams(-1,dp(46)));addSpace(2);
         } c.close();
     }
 
@@ -883,6 +890,14 @@ public class MainActivity extends Activity {
         String invoiceNoFromTransaction(String details){if(details==null)return "";String p="فاتورة مبيعات رقم ";return details.startsWith(p)?details.substring(p.length()).trim():"";}
         String invoiceCompactDetails(String no){Cursor c=getReadableDatabase().rawQuery("SELECT name,qty,total FROM invoice_items WHERE invoice_id=(SELECT id FROM invoices WHERE no=? ORDER BY id DESC LIMIT 1) ORDER BY id",new String[]{no});StringBuilder s=new StringBuilder("تفاصيل: ");int n=0;while(c.moveToNext()&&n<6){if(n>0)s.append(" • ");s.append(c.getString(0)).append(" × ").append(fmt(c.getDouble(1))).append(" = ").append(fmt(c.getDouble(2)));n++;}c.close();return n==0?"تفاصيل الفاتورة غير متاحة":s.toString();}
         Cursor invoices(){return getReadableDatabase().rawQuery("SELECT id,no,customer,total,date FROM invoices ORDER BY datetime(date) DESC, id DESC LIMIT 100",null);}
+        Cursor recentActivity(){
+            return getReadableDatabase().rawQuery(
+                "SELECT kind,ref,title,amount,date FROM ("+
+                "SELECT 1 AS kind,no AS ref,'فاتورة '+no+' • '+CASE WHEN customer IS NULL OR customer='' THEN 'نقدي' ELSE customer END AS title,total AS amount,date,id AS sort_id FROM invoices "+
+                "UNION ALL "+
+                "SELECT 2 AS kind,'' AS ref,CASE WHEN details IS NULL OR details='' THEN 'عملية مالية' ELSE details END || ' • ' || CASE WHEN c.name IS NULL THEN '' ELSE c.name END AS title,amount,date,id AS sort_id FROM transactions t LEFT JOIN customers c ON c.id=t.customer_id WHERE details NOT LIKE 'فاتورة مبيعات رقم %'"+
+                ") ORDER BY datetime(date) DESC, sort_id DESC LIMIT 200",null);
+        }
         int invoiceCount(){Cursor c=getReadableDatabase().rawQuery("SELECT COUNT(*) FROM invoices",null);int x=c.moveToFirst()?c.getInt(0):0;c.close();return x;}
         int customerCount(){Cursor c=getReadableDatabase().rawQuery("SELECT COUNT(*) FROM customers",null);int x=c.moveToFirst()?c.getInt(0):0;c.close();return x;}
         double sales(){Cursor c=getReadableDatabase().rawQuery("SELECT COALESCE(SUM(total),0) FROM invoices",null);double x=c.moveToFirst()?c.getDouble(0):0;c.close();return x;}
