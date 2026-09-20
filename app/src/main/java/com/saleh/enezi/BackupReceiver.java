@@ -70,7 +70,7 @@ public class BackupReceiver extends BroadcastReceiver {
                 }
             }
         }catch(Exception ignored){}finally{
-            try{if(helper!=null)helper.close();}catch(Exception ignored){}
+            try{if(d!=null)d.close();}catch(Exception ignored){}
             tmp.delete();
         }
     }
