@@ -669,7 +669,8 @@ public class MainActivity extends Activity {
         content.addView(addBox,new LinearLayout.LayoutParams(-1,-2)); addSpace(12);
 
         LinearLayout list=new LinearLayout(this); list.setOrientation(LinearLayout.VERTICAL); content.addView(list);
-        Runnable refresh=()->{
+        final Runnable[] refresh={null};
+        refresh[0]=()->{
             list.removeAllViews(); Cursor c=db.customers(search.getText().toString());
             while(c.moveToNext()){
                 long id=c.getLong(0); String n=c.getString(1),p=c.getString(2); double bal=db.balance(id);
@@ -917,7 +918,7 @@ public class MainActivity extends Activity {
                     .setPositiveButton("حذف",(d,w)->{
                         db.deleteItem(id);
                         if(editingId[0]==id)clearForm.run();
-                        refresh.run();
+                        refresh[0].run();
                         Toast.makeText(this,"تم حذف الصنف",Toast.LENGTH_SHORT).show();
                     }).show());
 
