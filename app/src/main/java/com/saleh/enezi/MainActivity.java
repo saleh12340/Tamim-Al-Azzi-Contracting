@@ -685,7 +685,7 @@ public class MainActivity extends Activity {
             } c.close();
         };
         add.setOnClickListener(v->{String n=name.getText().toString().trim();if(n.isEmpty()){Toast.makeText(this,"اكتب اسم العميل",Toast.LENGTH_SHORT).show();return;}db.addCustomer(n,phone.getText().toString().trim());name.setText("");phone.setText("");refresh.run();});
-        search.addTextChangedListener(new android.text.TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int c,int a){}public void onTextChanged(CharSequence s,int st,int b,int c){refresh.run();}public void afterTextChanged(android.text.Editable e){}});
+        search.addTextChangedListener(new android.text.TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int c,int a){}public void onTextChanged(CharSequence s,int st,int b,int c){refresh[0].run();}public void afterTextChanged(android.text.Editable e){}});
         refresh.run();
     }
     void addSpaceTo(LinearLayout p,int h){Space s=new Space(this);p.addView(s,new LinearLayout.LayoutParams(1,h));}
@@ -877,7 +877,8 @@ public class MainActivity extends Activity {
             add.setText("＋ حفظ الصنف");
         };
 
-        Runnable refresh=()->{
+        final Runnable[] refresh={null};
+        refresh[0]=()->{
             list.removeAllViews();
             Cursor c=db.items();
             while(c.moveToNext()){
@@ -947,12 +948,12 @@ public class MainActivity extends Activity {
                     Toast.makeText(this,existed?"الصنف موجود؛ تم تحديث بياناته":"تم حفظ الصنف",Toast.LENGTH_SHORT).show();
                 }
                 clearForm.run();
-                refresh.run();
+                refresh[0].run();
             }catch(Exception e){
                 Toast.makeText(this,"أدخل بيانات الصنف بشكل صحيح",Toast.LENGTH_SHORT).show();
             }
         });
-        refresh.run();
+        refresh[0].run();
     }
     void reports(){
         base("التقارير");section("ملخص سريع");
