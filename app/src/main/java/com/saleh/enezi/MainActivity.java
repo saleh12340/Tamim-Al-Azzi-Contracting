@@ -347,7 +347,7 @@ public class MainActivity extends Activity {
             if(cn.isEmpty()){Toast.makeText(this,"اكتب اسم العميل، أو اتركه للفاتورة النقدية",Toast.LENGTH_SHORT).show();return;}
             showPhoneDialog(cn,no.getText().toString(),lines,totalOf(lines),edit,invoiceId);
         });
-        print.setOnClickListener(v->preview(no.getText().toString(),customer.getText().toString(),lines,totalOf(lines)));
+        print.setOnClickListener(v->preview(no.getText().toString(),customer.getText().toString(),lines,totalOf(lines),edit,invoiceId));
         item.setOnEditorActionListener((v,a,e)->{add.performClick();return true;});
         customer.addTextChangedListener(new android.text.TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int c,int a){}public void onTextChanged(CharSequence s,int st,int b,int c){redraw.run();}public void afterTextChanged(android.text.Editable e){}});
         redraw.run();
@@ -411,14 +411,24 @@ public class MainActivity extends Activity {
     }
     void redrawInvoiceRows(LinearLayout parent,ArrayList<Line> all,double baseBal){parent.removeAllViews();double run=0;for(Line x:all){run+=x.total;addRow(parent,x,run,baseBal,all);}}
     void spaceTo(LinearLayout p,int h){Space x=new Space(this);p.addView(x,new LinearLayout.LayoutParams(1,dp(h)));}
-    void preview(String no,String customer,ArrayList<Line> lines,double total){
-        long cid=customer.trim().isEmpty()?-1:db.customer(customer);
-        double balanceAfter=cid>0?db.balance(cid)+total:0;
-        String s=receiptTextFromLines(no,customer,lines,total,cid,balanceAfter);
+    void preview(String no,String customer,ArrayList<Line> lines,double total,boolean edit,long oldId){
+        String cleanCustomer=customer==null?"":customer.trim();
+        long cid=cleanCustomer.isEmpty()?-1:db.customerIdByName(cleanCustomer);
+        double balanceAfter=0;
+        if(cid>0){
+            balanceAfter=db.balance(cid)+total;
+            if(edit){
+                String oldCustomer=db.invoiceCustomer(oldId);
+                double oldTotal=db.invoiceTotal(oldId);
+                if(oldCustomer.equals(cleanCustomer)) balanceAfter-=oldTotal;
+            }
+            if(Math.abs(balanceAfter)<0.005) balanceAfter=0;
+        }
+        String s=receiptTextFromLines(no,cleanCustomer,lines,total,cid,balanceAfter);
         TextView v=tv(s,11);v.setTypeface(Typeface.MONOSPACE);v.setGravity(Gravity.CENTER);
         new AlertDialog.Builder(this).setTitle("معاينة إيصال 58mm").setView(v)
-            .setPositiveButton("مشاركة واتساب",(d,w)->shareReceiptImageAndText(no,customer,lines,total))
-            .setNeutralButton("طباعة",(d,w)->printInvoiceBluetooth(no,customer,lines,total))
+            .setPositiveButton("مشاركة واتساب",(d,w)->shareReceiptImageAndText(no,cleanCustomer,lines,total))
+            .setNeutralButton("طباعة",(d,w)->printInvoiceBluetooth(no,cleanCustomer,lines,total))
             .setNegativeButton("إغلاق",null).show();
     }
 
@@ -989,6 +999,8 @@ public class MainActivity extends Activity {
         int customerCount(){Cursor c=getReadableDatabase().rawQuery("SELECT COUNT(*) FROM customers",null);int x=c.moveToFirst()?c.getInt(0):0;c.close();return x;}
         double sales(){Cursor c=getReadableDatabase().rawQuery("SELECT COALESCE(SUM(total),0) FROM invoices",null);double x=c.moveToFirst()?c.getDouble(0):0;c.close();return x;}
         String[] customerNames(){Cursor c=getReadableDatabase().rawQuery("SELECT name FROM customers ORDER BY name",null);ArrayList<String>a=new ArrayList<>();while(c.moveToNext())a.add(c.getString(0));c.close();return a.toArray(new String[0]);}
+        long customerIdByName(String n){Cursor c=getReadableDatabase().rawQuery("SELECT id FROM customers WHERE name=? ORDER BY id DESC LIMIT 1",new String[]{n});long x=c.moveToFirst()?c.getLong(0):-1;c.close();return x;}
+        double invoiceTotal(long id){Cursor c=getReadableDatabase().rawQuery("SELECT COALESCE(total,0) FROM invoices WHERE id=?",new String[]{String.valueOf(id)});double x=c.moveToFirst()?c.getDouble(0):0;c.close();return x;}
         String phoneByName(String n){Cursor c=getReadableDatabase().rawQuery("SELECT COALESCE(phone,'') FROM customers WHERE name=? LIMIT 1",new String[]{n});String x=c.moveToFirst()?c.getString(0):"";c.close();return x==null?"":x;}
         long customer(String n,String p){Cursor c=getReadableDatabase().rawQuery("SELECT id FROM customers WHERE name=?",new String[]{n});if(c.moveToFirst()){long x=c.getLong(0);c.close();ContentValues v=new ContentValues();v.put("phone",p);getWritableDatabase().update("customers",v,"id=?",new String[]{String.valueOf(x)});return x;}c.close();ContentValues v=new ContentValues();v.put("name",n);v.put("phone",p);return getWritableDatabase().insert("customers",null,v);}
         double balanceByName(String n){Cursor c=getReadableDatabase().rawQuery("SELECT id FROM customers WHERE name=? ORDER BY id DESC LIMIT 1",new String[]{n});if(!c.moveToFirst()){c.close();return 0;}long id=c.getLong(0);c.close();return balance(id);}
