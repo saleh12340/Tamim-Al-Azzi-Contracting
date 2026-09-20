@@ -205,26 +205,41 @@ public class MainActivity extends Activity {
 
         section("صندوق عرض الفاتورة");
         LinearLayout invoiceBox=card();
+        invoiceBox.setPadding(dp(6),dp(6),dp(6),dp(8));
+
+        // جدول مرتب بخلايا متساوية ومن دون حدود مرئية؛ الأعمدة ثابتة وواضحة بصرياً.
+        LinearLayout table=new LinearLayout(this);
+        table.setOrientation(LinearLayout.VERTICAL);
+        table.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
 
         LinearLayout head=new LinearLayout(this);
-        head.setOrientation(LinearLayout.HORIZONTAL);head.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        head.setOrientation(LinearLayout.HORIZONTAL);
+        head.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
         String[] heads={"الإجمالي","الكمية","اسم الصنف","سعر الوحدة","حذف"};
         float[] weights={1.0f,.72f,1.35f,.9f,.55f};
         for(int i=0;i<heads.length;i++){
-            TextView hv=tv(heads[i],10);hv.setTextColor(MUTED);hv.setTypeface(Typeface.DEFAULT,Typeface.BOLD);hv.setGravity(Gravity.CENTER);
-            head.addView(hv,new LinearLayout.LayoutParams(0,dp(34),weights[i]));
+            TextView hv=tv(heads[i],11);
+            hv.setTextColor(GREEN);hv.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+            hv.setGravity(Gravity.CENTER);hv.setSingleLine(true);
+            hv.setBackgroundColor(Color.TRANSPARENT);
+            head.addView(hv,new LinearLayout.LayoutParams(0,dp(38),weights[i]));
         }
-        invoiceBox.addView(head);
+        table.addView(head,new LinearLayout.LayoutParams(-1,dp(38)));
 
         LinearLayout rows=new LinearLayout(this);
         rows.setOrientation(LinearLayout.VERTICAL);
-        invoiceBox.addView(rows,new LinearLayout.LayoutParams(-1,-2));
+        rows.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        table.addView(rows,new LinearLayout.LayoutParams(-1,-2));
 
-        TextView totalView=tv("الإجمالي: 0 ريال",23);totalView.setTextColor(GREEN);
-        totalView.setTypeface(Typeface.DEFAULT,Typeface.BOLD);totalView.setGravity(Gravity.CENTER);
+        invoiceBox.addView(table,new LinearLayout.LayoutParams(-1,-2));
+
+        TextView totalView=tv("الإجمالي: 0 ريال",24);
+        totalView.setTextColor(GREEN);
+        totalView.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        totalView.setGravity(Gravity.CENTER);
         totalView.setBackground(bg(Color.rgb(255,249,226),14));
-        invoiceBox.addView(totalView,new LinearLayout.LayoutParams(-1,dp(62)));
-        addCard(invoiceBox,94);
+        invoiceBox.addView(totalView,new LinearLayout.LayoutParams(-1,dp(66)));
+        addCard(invoiceBox,102);
 
         final ArrayList<Line> lines=new ArrayList<>();
         if(edit){Cursor c=db.invoiceLines(invoiceId);while(c.moveToNext())lines.add(new Line(c.getString(1),c.getDouble(2),c.getDouble(3)));c.close();}
