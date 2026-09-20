@@ -68,7 +68,8 @@ public class MainActivity extends Activity {
         if(prev.equals("الرئيسية")) home();
         else if(prev.equals("الحسابات")||prev.equals("العملاء")) customers();
         else if(prev.equals("الفواتير")) invoiceHistory();
-        else if(prev.equals("فواتير الشراء")||prev.equals("المخزون")) purchaseInvoices();
+        else if(prev.equals("فواتير الشراء")) purchaseInvoices();
+        else if(prev.equals("المخزون")) inventory();
         else if(prev.equals("التقارير")) reports();
         else home();
     }
@@ -145,7 +146,7 @@ public class MainActivity extends Activity {
         sv.addView(content); root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));
         setContentView(root);
     }
-    void navigate(String n){hideKeyboard(); if(n.equals("الرئيسية"))home();else if(n.equals("العملاء")||n.equals("الحسابات"))customers();else if(n.equals("الفواتير"))invoice();else if(n.equals("فواتير الشراء")||n.equals("المخزون"))purchaseInvoices();else reports();}
+    void navigate(String n){hideKeyboard(); if(n.equals("الرئيسية"))home();else if(n.equals("العملاء")||n.equals("الحسابات"))customers();else if(n.equals("الفواتير"))invoice();else if(n.equals("فواتير الشراء"))purchaseInvoices();else if(n.equals("المخزون"))inventory();else reports();}
     void importContact(){
         if(Build.VERSION.SDK_INT>=23 && checkSelfPermission("android.permission.READ_CONTACTS")!=PackageManager.PERMISSION_GRANTED){ requestPermissions(new String[]{"android.permission.READ_CONTACTS"},REQ_CONTACTS); return; }
         try{ Intent i=new Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI); startActivityForResult(i,PICK_CONTACT); }catch(Exception e){ Toast.makeText(this,"تعذر فتح جهات الاتصال",Toast.LENGTH_SHORT).show(); }
@@ -251,7 +252,18 @@ public class MainActivity extends Activity {
             LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(44),1); p.setMargins(i==0?0:dp(3),0,i==0?dp(3):0,0);
             tabs2.addView(b,p);
         }
-        middle.addView(tabs2,new LinearLayout.LayoutParams(-1,dp(54))); addSpaceTo(middle,7);
+        middle.addView(tabs2,new LinearLayout.LayoutParams(-1,dp(56))); addSpaceTo(middle,5);
+
+        // وصول سريع للمخزون والإجراءات العامة، مع الحفاظ على بساطة الشاشة الرئيسية.
+        LinearLayout tabs3=new LinearLayout(this);
+        tabs3.setOrientation(LinearLayout.HORIZONTAL); tabs3.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        Button inventoryTab=action("📦 المخزون",GREEN); inventoryTab.setTextSize(12); inventoryTab.setMaxLines(1); fitInside(inventoryTab,13f,9f);
+        inventoryTab.setOnClickListener(v->inventory());
+        Button generalTab=action("⚡ إجراء عام",BLUE); generalTab.setTextSize(12); generalTab.setMaxLines(1); fitInside(generalTab,13f,9f);
+        generalTab.setOnClickListener(v->showGeneralActions());
+        tabs3.addView(inventoryTab,new LinearLayout.LayoutParams(0,dp(50),1));
+        LinearLayout.LayoutParams gp=new LinearLayout.LayoutParams(0,dp(50),1); gp.setMargins(dp(3),0,0,0); tabs3.addView(generalTab,gp);
+        middle.addView(tabs3,new LinearLayout.LayoutParams(-1,dp(52))); addSpaceTo(middle,6);
 
         LinearLayout screen=card();
         screen.setPadding(dp(9),dp(7),dp(9),dp(7));
@@ -297,7 +309,7 @@ public class MainActivity extends Activity {
         new AlertDialog.Builder(this).setTitle("إجراء عام").setItems(choices,(d,w)->{
             if(w==0) invoice();
             else if(w==1) customers();
-            else if(w==2) purchaseInvoices();
+            else if(w==2) inventory();
             else reports();
         }).setNegativeButton("إغلاق",null).show();
     }
