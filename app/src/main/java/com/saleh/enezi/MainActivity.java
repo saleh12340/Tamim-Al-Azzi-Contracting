@@ -83,7 +83,7 @@ public class MainActivity extends Activity {
             t.setEllipsize(null);
             t.setBreakStrategy(android.text.Layout.BREAK_STRATEGY_HIGH_QUALITY);
             if(android.os.Build.VERSION.SDK_INT>=26){
-                t.setAutoSizeTextTypeUniformWithConfiguration(minSp,maxSp,1,android.util.TypedValue.COMPLEX_UNIT_SP);
+                t.setAutoSizeTextTypeUniformWithConfiguration(Math.round(minSp),Math.round(maxSp),1,android.util.TypedValue.COMPLEX_UNIT_SP);
             }
         }
     }
