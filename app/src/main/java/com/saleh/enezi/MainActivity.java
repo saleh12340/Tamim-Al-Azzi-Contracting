@@ -242,12 +242,20 @@ public class MainActivity extends Activity {
         }
         table.addView(head,new LinearLayout.LayoutParams(-1,dp(38)));
 
+        HorizontalScrollView tableScroll=new HorizontalScrollView(this);
+        tableScroll.setHorizontalScrollBarEnabled(false);
+        tableScroll.setFillViewport(true);
         LinearLayout rows=new LinearLayout(this);
         rows.setOrientation(LinearLayout.VERTICAL);
         rows.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-        table.addView(rows,new LinearLayout.LayoutParams(-1,-2));
+        tableScroll.addView(rows,new ViewGroup.LayoutParams(-1,-2));
+        invoiceBox.addView(tableScroll,new LinearLayout.LayoutParams(-1,dp(260)));
 
-        invoiceBox.addView(table,new LinearLayout.LayoutParams(-1,-2));
+        TextView boxTotal=tv("إجمالي الأصناف: 0 ريال",21);
+        boxTotal.setTextColor(GREEN); boxTotal.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        boxTotal.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
+        boxTotal.setPadding(dp(12),dp(8),dp(12),dp(8));
+        invoiceBox.addView(boxTotal,new LinearLayout.LayoutParams(-1,dp(58)));
 
         TextView totalView=tv("الإجمالي: 0 ريال",24);
         totalView.setTextColor(GREEN);
@@ -255,7 +263,7 @@ public class MainActivity extends Activity {
         totalView.setGravity(Gravity.CENTER);
         totalView.setBackground(bg(Color.rgb(255,249,226),14));
         invoiceBox.addView(totalView,new LinearLayout.LayoutParams(-1,dp(66)));
-        addCard(invoiceBox,102);
+        content.addView(invoiceBox,new LinearLayout.LayoutParams(-1,-2)); space(10);
 
         final ArrayList<Line> lines=new ArrayList<>();
         if(edit){Cursor c=db.invoiceLines(invoiceId);while(c.moveToNext())lines.add(new Line(c.getString(1),c.getDouble(2),c.getDouble(3)));c.close();}
@@ -265,6 +273,7 @@ public class MainActivity extends Activity {
             double run=0,baseBal=db.balanceByName(customer.getText().toString().trim());
             for(Line l:lines){run+=l.total;addRow(rows,l,run,baseBal,lines);}
             totalView.setText("الإجمالي: "+fmt(run)+" ريال");
+            boxTotal.setText("إجمالي الأصناف: "+fmt(run)+" ريال");
         };
 
         add.setOnClickListener(v->{
@@ -374,10 +383,16 @@ public class MainActivity extends Activity {
     String receiptText(String no,String customer,LinearLayout rows,double total,long cid){StringBuilder s=new StringBuilder("بقالة العزي\nفاتورة رقم: ").append(no).append("\nالتاريخ: ").append(db.now()).append("\n");if(!customer.isEmpty())s.append("العميل: ").append(customer).append("\n");s.append("------------------------------\n");for(int i=0;i<rows.getChildCount();i++){View ch=rows.getChildAt(i);if(ch instanceof LinearLayout){LinearLayout r=(LinearLayout)ch;StringBuilder q=new StringBuilder();for(int j=0;j<r.getChildCount();j++){View x=r.getChildAt(j);if(x instanceof TextView){String z=((TextView)x).getText().toString().trim();if(!z.isEmpty()){if(q.length()>0)q.append(" | ");q.append(z);}}}if(q.length()>0)s.append(q).append("\n");}}s.append("------------------------------\nالإجمالي: ").append(fmt(total)).append(" ريال\n");if(cid>0)s.append(balanceText(db.balance(cid))).append("\n");s.append("شكراً لتعاملكم معنا");return s.toString();}
     String balanceText(double b){return b>0?"رصيد العميل عليه: "+fmt(b)+" ريال":b<0?"رصيد العميل له: "+fmt(Math.abs(b))+" ريال":"رصيد العميل: 0 ريال";}
     void shareText(String s){Intent i=new Intent(Intent.ACTION_SEND);i.setType("text/plain");i.putExtra(Intent.EXTRA_TEXT,s);startActivity(Intent.createChooser(i,"إرسال الفاتورة"));}
-    void shareWhatsApp(String s){try{Intent i=new Intent(Intent.ACTION_SEND);i.setType("text/plain");i.setPackage("com.whatsapp");i.putExtra(Intent.EXTRA_TEXT,s);startActivity(i);}catch(Exception e){shareText(s);}}
+    void shareWhatsAppToCustomer(String phone,String text,Uri image){
+        String p=phone==null?"":phone.replaceAll("[^0-9+]","");
+        Intent i=new Intent(Intent.ACTION_SEND); i.setType("image/png");
+        i.putExtra(Intent.EXTRA_TEXT,text); if(image!=null){i.putExtra(Intent.EXTRA_STREAM,image);i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);}
+        if(!p.isEmpty()) i.putExtra("jid",p.replace("+","")+"@s.whatsapp.net");
+        try{ i.setPackage("com.whatsapp"); startActivity(i); }catch(Exception e){ i.setPackage(null); startActivity(Intent.createChooser(i,"مشاركة الفاتورة")); }
+    }
     Bitmap receiptBitmap(String text){int width=384,pad=dp(8);TextPaint paint=new TextPaint(Paint.ANTI_ALIAS_FLAG);paint.setColor(Color.BLACK);paint.setTextSize(dp(15));paint.setTypeface(Typeface.create("sans",Typeface.NORMAL));StaticLayout layout=new StaticLayout(text,paint,width-pad*2,Layout.Alignment.ALIGN_CENTER,1.0f,dp(4),false);Bitmap b=Bitmap.createBitmap(width,Math.max(dp(80),layout.getHeight()+dp(20)),Bitmap.Config.ARGB_8888);Canvas canvas=new Canvas(b);canvas.drawColor(Color.WHITE);canvas.save();canvas.translate(pad,dp(8));layout.draw(canvas);canvas.restore();return b;}
     Uri saveReceiptBitmap(Bitmap bitmap,String no)throws Exception{File dir=new File(getCacheDir(),"receipts");if(!dir.exists())dir.mkdirs();File file=new File(dir,"invoice_"+no+"_"+System.currentTimeMillis()+".png");FileOutputStream out=new FileOutputStream(file);bitmap.compress(Bitmap.CompressFormat.PNG,100,out);out.close();return FileProvider.getUriForFile(this,getPackageName()+".fileprovider",file);}
-    void shareReceiptImageAndText(String no,String customer,ArrayList<Line> lines,double total){try{long cid=customer.trim().isEmpty()?-1:db.customer(customer);String text=receiptTextFromLines(no,customer,lines,total,cid);Uri uri=saveReceiptBitmap(receiptBitmap(text),no);Intent i=new Intent(Intent.ACTION_SEND);i.setType("image/png");i.putExtra(Intent.EXTRA_TEXT,text);i.putExtra(Intent.EXTRA_STREAM,uri);i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);try{i.setPackage("com.whatsapp");startActivity(i);}catch(Exception e){i.setPackage(null);startActivity(Intent.createChooser(i,"مشاركة الفاتورة"));}}catch(Exception e){shareWhatsApp(receiptTextFromLines(no,customer,lines,total,customer.isEmpty()?-1:db.customer(customer)));}}
+    void shareReceiptImageAndText(String no,String customer,ArrayList<Line> lines,double total){try{long cid=customer.trim().isEmpty()?-1:db.customer(customer);String text=receiptTextFromLines(no,customer,lines,total,cid);Uri uri=saveReceiptBitmap(receiptBitmap(text),no);String phone=db.phoneByName(customer);shareWhatsAppToCustomer(phone,text,uri);}catch(Exception e){shareText(receiptTextFromLines(no,customer,lines,total,customer.isEmpty()?-1:db.customer(customer)));}}
     String pendingPrintNo="",pendingPrintCustomer="";ArrayList<Line> pendingPrintLines;double pendingPrintTotal;
     void printInvoiceBluetooth(String no,String customer,ArrayList<Line> lines,double total){
         if(Build.VERSION.SDK_INT>=31&&checkSelfPermission("android.permission.BLUETOOTH_CONNECT")!=PackageManager.PERMISSION_GRANTED){pendingPrintNo=no;pendingPrintCustomer=customer;pendingPrintLines=new ArrayList<>(lines);pendingPrintTotal=total;requestPermissions(new String[]{"android.permission.BLUETOOTH_CONNECT"},5101);return;}
@@ -440,13 +455,13 @@ public class MainActivity extends Activity {
         TextView bal=tv(balanceText(db.balance(id)),22); bal.setTextColor(GREEN); bal.setTypeface(Typeface.DEFAULT,Typeface.BOLD); bal.setGravity(Gravity.CENTER);
         summary.addView(bal,new LinearLayout.LayoutParams(-1,dp(54)));
         TextView hint=tv("الأحدث أولاً • يظهر تاريخ وبيانات العملية والرصيد التراكمي بعد كل عملية",11); hint.setTextColor(MUTED); hint.setGravity(Gravity.CENTER);
-        summary.addView(hint,new LinearLayout.LayoutParams(-1,dp(30))); addCard(summary,94);
+        summary.addView(hint,new LinearLayout.LayoutParams(-1,dp(34))); addCard(summary,94);
 
         EditText amount=field("المبلغ"); addField(amount); EditText details=field("التفاصيل"); addField(details);
         LinearLayout acts=new LinearLayout(this); acts.setOrientation(LinearLayout.HORIZONTAL);
         Button debit=button("عليه"),credit=button("له / دفعة"); debit.setTextColor(Color.RED);credit.setTextColor(GREEN);
         acts.addView(debit,new LinearLayout.LayoutParams(0,dp(50),1));acts.addView(credit,new LinearLayout.LayoutParams(0,dp(50),1));content.addView(acts);addSpace(8);
-        Button share=button("📲 مشاركة كشف الحساب");share.setTextColor(GREEN);content.addView(share,new LinearLayout.LayoutParams(-1,dp(50)));share.setOnClickListener(v->shareWhatsApp(statement(id,name)));addSpace(10);
+        Button share=button("📄 PDF + واتساب");share.setTextColor(GREEN);content.addView(share,new LinearLayout.LayoutParams(-1,dp(54)));share.setOnClickListener(v->shareAccountPdfToWhatsApp(id,name));
         section("سجل العمليات"); LinearLayout history=new LinearLayout(this);history.setOrientation(LinearLayout.VERTICAL);content.addView(history);
 
         Runnable refresh=()->{
@@ -454,8 +469,8 @@ public class MainActivity extends Activity {
             while(c.moveToNext()){
                 String date=c.getString(1),d=c.getString(2);double amountValue=c.getDouble(3);int type=c.getInt(4);
                 LinearLayout r=new LinearLayout(this);r.setOrientation(LinearLayout.VERTICAL);r.setPadding(dp(12),dp(8),dp(12),dp(8));r.setBackground(outlined(CARD,1,14));
-                TextView dateV=tv(date,11);dateV.setTextColor(MUTED);r.addView(dateV,new LinearLayout.LayoutParams(-1,dp(26)));
-                TextView detV=tv(d==null||d.trim().isEmpty()?"عملية مالية":d,13);detV.setTypeface(Typeface.DEFAULT,Typeface.BOLD);r.addView(detV,new LinearLayout.LayoutParams(-1,dp(34)));
+                TextView dateV=tv(date,11);dateV.setTextColor(MUTED);r.addView(dateV,new LinearLayout.LayoutParams(-1,dp(30)));
+                TextView detV=tv(d==null||d.trim().isEmpty()?"عملية مالية":d,13);detV.setTypeface(Typeface.DEFAULT,Typeface.BOLD);r.addView(detV,new LinearLayout.LayoutParams(-1,dp(40)));
                 TextView amtV=tv((type==1?"عليه: ":"له: ")+fmt(amountValue)+" ريال",13);amtV.setTextColor(type==1?Color.rgb(190,55,45):GREEN);r.addView(amtV,new LinearLayout.LayoutParams(-1,dp(30)));
                 TextView balV=tv("الرصيد بعد العملية: "+balanceText(runningAfter),12);balV.setTextColor(GREEN);r.addView(balV,new LinearLayout.LayoutParams(-1,dp(30)));
                 String invNo=db.invoiceNoFromTransaction(d);
