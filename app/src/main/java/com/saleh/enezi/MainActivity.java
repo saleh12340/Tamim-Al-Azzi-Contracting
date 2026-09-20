@@ -851,13 +851,97 @@ public class MainActivity extends Activity {
     }
 
     void inventory(){
-        base("المخزون");section("إضافة صنف");
-        EditText name=field("اسم الصنف");EditText qty=numberField("الكمية");EditText min=numberField("الحد الأدنى");addField(name);addField(qty);addField(min);
-        Button add=button("＋ حفظ الصنف");add.setTextColor(Color.WHITE);add.setBackgroundColor(GREEN);content.addView(add,new LinearLayout.LayoutParams(-1,dp(38)));addSpace(8);
+        base("المخزون");section("إضافة / تعديل صنف");
+        EditText name=field("اسم الصنف");EditText qty=numberField("الكمية");EditText min=numberField("الحد الأدنى");
+        addField(name);addField(qty);addField(min);
+        Button add=button("＋ حفظ الصنف");add.setTextColor(Color.WHITE);add.setBackgroundColor(GREEN);
+        content.addView(add,new LinearLayout.LayoutParams(-1,dp(38)));addSpace(8);
         LinearLayout list=new LinearLayout(this);list.setOrientation(LinearLayout.VERTICAL);content.addView(list);
-        Runnable refresh=()->{list.removeAllViews();Cursor c=db.items();while(c.moveToNext()){double q=c.getDouble(2),m=c.getDouble(3);TextView r=tv(c.getString(1)+"\nالكمية: "+fmt(q)+"   •   الحد الأدنى: "+fmt(m)+(q<=m?"   ⚠ منخفض":""),
-                14);r.setBackgroundColor(CARD);r.setTextColor(q<=m?Color.rgb(170,75,35):TEXT);list.addView(r,new LinearLayout.LayoutParams(-1,dp(68)));addSpaceTo(list,5);}c.close();};
-        add.setOnClickListener(v->{try{db.addItem(name.getText().toString().trim(),Double.parseDouble(qty.getText().toString()),Double.parseDouble(min.getText().toString()));name.setText("");qty.setText("");min.setText("");refresh.run();}catch(Exception e){Toast.makeText(this,"أدخل بيانات الصنف بشكل صحيح",Toast.LENGTH_SHORT).show();}});refresh.run();
+
+        final long[] editingId={-1};
+
+        Runnable clearForm=()->{
+            editingId[0]=-1;
+            name.setText("");qty.setText("");min.setText("");
+            add.setText("＋ حفظ الصنف");
+        };
+
+        Runnable refresh=()->{
+            list.removeAllViews();
+            Cursor c=db.items();
+            while(c.moveToNext()){
+                long id=c.getLong(0);
+                String itemName=c.getString(1);
+                double q=c.getDouble(2),m=c.getDouble(3);
+
+                LinearLayout row=new LinearLayout(this);
+                row.setOrientation(LinearLayout.VERTICAL);
+                row.setPadding(dp(8),dp(5),dp(8),dp(5));
+                row.setBackground(outlined(CARD,1,10));
+
+                TextView info=tv(itemName+"\nالكمية: "+fmt(q)+"   •   الحد الأدنى: "+fmt(m)+(q<=m?"   ⚠ منخفض":""),13);
+                info.setTextColor(q<=m?Color.rgb(170,75,35):TEXT);
+                row.addView(info,new LinearLayout.LayoutParams(-1,dp(42)));
+
+                LinearLayout actions=new LinearLayout(this);
+                actions.setOrientation(LinearLayout.HORIZONTAL);
+                actions.setGravity(Gravity.CENTER);
+
+                Button editBtn=button("✎ تعديل");
+                editBtn.setTextColor(GREEN);
+                Button deleteBtn=button("حذف");
+                deleteBtn.setTextColor(Color.rgb(170,55,55));
+
+                editBtn.setOnClickListener(v->{
+                    editingId[0]=id;
+                    name.setText(itemName);qty.setText(fmt(q));min.setText(fmt(m));
+                    add.setText("✓ حفظ التعديل");
+                    name.requestFocus();
+                    Toast.makeText(this,"تم تحميل الصنف للتعديل",Toast.LENGTH_SHORT).show();
+                });
+
+                deleteBtn.setOnClickListener(v->new AlertDialog.Builder(this)
+                    .setTitle("حذف الصنف")
+                    .setMessage("هل تريد حذف «"+itemName+"» نهائياً؟")
+                    .setNegativeButton("إلغاء",null)
+                    .setPositiveButton("حذف",(d,w)->{
+                        db.deleteItem(id);
+                        if(editingId[0]==id)clearForm.run();
+                        refresh.run();
+                        Toast.makeText(this,"تم حذف الصنف",Toast.LENGTH_SHORT).show();
+                    }).show());
+
+                actions.addView(editBtn,new LinearLayout.LayoutParams(0,dp(34),1));
+                actions.addView(deleteBtn,new LinearLayout.LayoutParams(0,dp(34),1));
+                row.addView(actions);
+                list.addView(row,new LinearLayout.LayoutParams(-1,dp(82)));
+                addSpaceTo(list,5);
+            }
+            c.close();
+        };
+
+        add.setOnClickListener(v->{
+            try{
+                String n=name.getText().toString().trim();
+                double q=Double.parseDouble(qty.getText().toString().trim());
+                double m=Double.parseDouble(min.getText().toString().trim());
+                if(n.isEmpty()||q<0||m<0)throw new Exception();
+
+                if(editingId[0]>0){
+                    db.updateItem(editingId[0],n,q,m);
+                    Toast.makeText(this,"تم تعديل الصنف وحفظه",Toast.LENGTH_SHORT).show();
+                }else{
+                    boolean existed=db.itemExists(n);
+                    db.addItem(n,q,m);
+                    Toast.makeText(this,existed?"الصنف موجود؛ تم تحديث بياناته":"تم حفظ الصنف",Toast.LENGTH_SHORT).show();
+                }
+                clearForm.run();
+                refresh.run();
+            }catch(Exception e){
+                Toast.makeText(this,"أدخل بيانات الصنف بشكل صحيح",Toast.LENGTH_SHORT).show();
+            }
+        });
+        refresh.run();
     }
     void reports(){
         base("التقارير");section("ملخص سريع");
@@ -885,7 +969,10 @@ public class MainActivity extends Activity {
         Cursor customers(String q){return getReadableDatabase().rawQuery("SELECT id,name,COALESCE(phone,'') FROM customers WHERE name LIKE ? OR phone LIKE ? ORDER BY name",new String[]{"%"+q+"%","%"+q+"%"});}
         Cursor transactions(long id){return getReadableDatabase().rawQuery("SELECT id,date,details,amount,type FROM transactions WHERE customer_id=? ORDER BY datetime(date) DESC, id DESC",new String[]{String.valueOf(id)});}
         Cursor items(){return getReadableDatabase().rawQuery("SELECT id,name,qty,min_qty FROM items ORDER BY name",null);}
+        boolean itemExists(String n){Cursor c=getReadableDatabase().rawQuery("SELECT id FROM items WHERE name=? LIMIT 1",new String[]{n});boolean x=c.moveToFirst();c.close();return x;}
         void addItem(String n,double q,double m){if(n.isEmpty()||q<0||m<0)throw new IllegalArgumentException();SQLiteDatabase d=getWritableDatabase();Cursor c=d.rawQuery("SELECT id FROM items WHERE name=? LIMIT 1",new String[]{n});if(c.moveToFirst()){long id=c.getLong(0);c.close();ContentValues v=new ContentValues();v.put("qty",q);v.put("min_qty",m);d.update("items",v,"id=?",new String[]{String.valueOf(id)});return;}c.close();ContentValues v=new ContentValues();v.put("name",n);v.put("qty",q);v.put("min_qty",m);d.insert("items",null,v);}
+        void updateItem(long id,String n,double q,double m){if(id<1||n==null||n.trim().isEmpty()||q<0||m<0)throw new IllegalArgumentException();ContentValues v=new ContentValues();v.put("name",n.trim());v.put("qty",q);v.put("min_qty",m);getWritableDatabase().update("items",v,"id=?",new String[]{String.valueOf(id)});}
+        void deleteItem(long id){if(id>0)getWritableDatabase().delete("items","id=?",new String[]{String.valueOf(id)});}
         int transactionCount(long id){Cursor c=getReadableDatabase().rawQuery("SELECT COUNT(*) FROM transactions WHERE customer_id=?",new String[]{String.valueOf(id)});int x=c.moveToFirst()?c.getInt(0):0;c.close();return x;}
         String invoiceNoFromTransaction(String details){if(details==null)return "";String p="فاتورة مبيعات رقم ";return details.startsWith(p)?details.substring(p.length()).trim():"";}
         String invoiceCompactDetails(String no){Cursor c=getReadableDatabase().rawQuery("SELECT name,qty,total FROM invoice_items WHERE invoice_id=(SELECT id FROM invoices WHERE no=? ORDER BY id DESC LIMIT 1) ORDER BY id",new String[]{no});StringBuilder s=new StringBuilder("تفاصيل: ");int n=0;while(c.moveToNext()&&n<6){if(n>0)s.append(" • ");s.append(c.getString(0)).append(" × ").append(fmt(c.getDouble(1))).append(" = ").append(fmt(c.getDouble(2)));n++;}c.close();return n==0?"تفاصيل الفاتورة غير متاحة":s.toString();}
