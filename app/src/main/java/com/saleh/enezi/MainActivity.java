@@ -100,7 +100,7 @@ public class MainActivity extends Activity {
         b.setLayoutDirection(View.LAYOUT_DIRECTION_RTL); fitInside(b,12f,8f); return b;
     }
     EditText field(String h){
-        EditText e=new EditText(this); e.setHint(h); e.setTextSize(13); e.setSingleLine(true);
+        EditText e=new EditText(this); e.setHint(h); e.setTextSize(13); e.setSingleLine(true); e.setIncludeFontPadding(true); e.setMaxLines(1); fitInside(e,14f,9f);
         e.setTextColor(TEXT); e.setHintTextColor(MUTED); e.setPadding(dp(7),dp(2),dp(7),dp(2)); e.setBackground(outlined(CARD,1,10)); e.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL); e.setLayoutDirection(View.LAYOUT_DIRECTION_RTL); e.setTextDirection(View.TEXT_DIRECTION_RTL);
         e.setSelectAllOnFocus(true); e.setOnClickListener(v -> e.selectAll());
         e.setOnFocusChangeListener((v,has)->{ if(has) e.postDelayed(() -> { e.selectAll(); },60); });
@@ -119,9 +119,9 @@ public class MainActivity extends Activity {
         e.setRawInputType(InputType.TYPE_CLASS_PHONE);
         return e;
     }
-    void addField(EditText e){content.addView(e,new LinearLayout.LayoutParams(-1,dp(38))); addSpace(2);}
+    void addField(EditText e){content.addView(e,new LinearLayout.LayoutParams(-1,dp(44))); addSpace(5);}
     void addSpace(int h){Space s=new Space(this); content.addView(s,new LinearLayout.LayoutParams(1,dp(h)));}
-    TextView section(String s){TextView v=tv(s,11);v.setTextColor(GREEN);v.setTypeface(Typeface.DEFAULT,Typeface.BOLD);v.setSingleLine(false);v.setMaxLines(2);v.setEllipsize(null);v.setPadding(dp(3),dp(4),dp(3),dp(2));content.addView(v,new LinearLayout.LayoutParams(-1,dp(26)));return v;}
+    TextView section(String s){TextView v=tv(s,14);v.setTextColor(GREEN);v.setTypeface(Typeface.DEFAULT,Typeface.BOLD);v.setSingleLine(false);v.setMaxLines(2);v.setEllipsize(null);v.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);v.setPadding(dp(8),dp(5),dp(8),dp(5));v.setBackground(outlined(CARD,1,12));fitInside(v,15f,9f);content.addView(v,new LinearLayout.LayoutParams(-1,dp(38)));addSpace(7);return v;}
 
     void base(String title){
         if(!title.equals(currentPage)){
@@ -137,7 +137,7 @@ public class MainActivity extends Activity {
         TextView logo=tv("بقالة العزي",19); logo.setTextColor(Color.WHITE); logo.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
         bar.addView(logo,new LinearLayout.LayoutParams(0,dp(40),1));
         TextView pt=tv(title,14); pt.setTextColor(Color.WHITE); pt.setGravity(Gravity.CENTER);
-        bar.addView(pt,new LinearLayout.LayoutParams(dp(105),dp(40))); root.addView(bar);
+        bar.addView(pt,new LinearLayout.LayoutParams(dp(125),dp(44))); root.addView(bar);
         ScrollView sv=new ScrollView(this); sv.setFillViewport(true); sv.setClipToPadding(false);
         content=new LinearLayout(this); content.setOrientation(LinearLayout.VERTICAL); content.setPadding(dp(5),dp(4),dp(5),dp(8)); content.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
         TextView operationChip=tv("العملية الحالية: "+title,10); operationChip.setTextColor(GREEN); operationChip.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL); operationChip.setSingleLine(false); operationChip.setMaxLines(2); operationChip.setEllipsize(null); operationChip.setPadding(dp(8),0,dp(8),0); operationChip.setBackground(outline(Color.rgb(241,247,242),8)); content.addView(operationChip,new LinearLayout.LayoutParams(-1,dp(24))); addSpace(2);
@@ -167,16 +167,16 @@ public class MainActivity extends Activity {
         LinearLayout hero=card(); hero.setPadding(dp(20),dp(16),dp(20),dp(16));
         hero.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{GREEN,DARK}));
         TextView h=tv("بقالة العزي",26);h.setTextColor(Color.WHITE);h.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
-        hero.addView(h,new LinearLayout.LayoutParams(-1,dp(42)));
+        hero.addView(h,new LinearLayout.LayoutParams(-1,dp(46)));
         TextView hs=tv("المبيعات • حسابات العملاء • المخزون • التقارير\nيعمل محلياً بدون إنترنت ويحفظ بياناتك على الجهاز",14);
-        hs.setTextColor(Color.WHITE);hero.addView(hs,new LinearLayout.LayoutParams(-1,dp(36)));
-        addCard(hero,120);
+        hs.setTextColor(Color.WHITE);hero.addView(hs,new LinearLayout.LayoutParams(-1,dp(52)));
+        addCard(hero,132);
 
         LinearLayout quick=card();
-        quick.addView(tv("إجراء سريع",17),new LinearLayout.LayoutParams(-1,dp(34)));
+        quick.addView(tv("إجراء سريع",18),new LinearLayout.LayoutParams(-1,dp(40)));
         Button ni=action("＋  إضافة فاتورة جديدة",GOLD);ni.setTextSize(18);ni.setOnClickListener(v->invoice());
-        quick.addView(ni,new LinearLayout.LayoutParams(-1,dp(36)));
-        addCard(quick,108);
+        quick.addView(ni,new LinearLayout.LayoutParams(-1,dp(44)));
+        addCard(quick,118);
 
         section("الأقسام الرئيسية");
 
@@ -194,15 +194,15 @@ public class MainActivity extends Activity {
                 LinearLayout c=card();
                 c.setPadding(dp(10),dp(9),dp(10),dp(8));
                 TextView a=tv(names[j],16);a.setTextColor(GREEN);a.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
-                c.addView(a,new LinearLayout.LayoutParams(-1,dp(38)));
+                c.addView(a,new LinearLayout.LayoutParams(-1,dp(44)));
                 TextView b=tv(subs[j],11);b.setTextColor(MUTED);
-                c.addView(b,new LinearLayout.LayoutParams(-1,dp(42)));
+                c.addView(b,new LinearLayout.LayoutParams(-1,dp(52)));
                 c.setOnClickListener(actions[j]);
-                LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,dp(92),1);
+                LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,dp(108),1);
                 if(j==i) cp.setMargins(0,0,dp(5),0); else cp.setMargins(dp(5),0,0,0);
                 row.addView(c,cp);
             }
-            content.addView(row,new LinearLayout.LayoutParams(-1,dp(92)));
+            content.addView(row,new LinearLayout.LayoutParams(-1,dp(108)));
             addSpace(8);
         }
 
@@ -238,7 +238,7 @@ public class MainActivity extends Activity {
         no.setTextColor(GREEN);no.setTypeface(Typeface.DEFAULT,Typeface.BOLD);no.setGravity(Gravity.CENTER);
         no.setBackground(outline(Color.rgb(248,250,248),14));
         no.setContentDescription("رقم الفاتورة");
-        metaRow.addView(no,new LinearLayout.LayoutParams(0,dp(42),0.72f));
+        metaRow.addView(no,new LinearLayout.LayoutParams(0,dp(46),0.72f));
 
         AutoCompleteTextView customer=new AutoCompleteTextView(this);
         customer.setHint("اسم العميل");customer.setTextSize(14);customer.setSingleLine(true);
@@ -248,7 +248,7 @@ public class MainActivity extends Activity {
         customer.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);customer.setTextDirection(View.TEXT_DIRECTION_RTL);
         customer.setThreshold(1);customer.setSelectAllOnFocus(true);
         customer.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_dropdown_item_1line,db.customerNames()));
-        metaRow.addView(customer,new LinearLayout.LayoutParams(0,dp(42),1.35f));
+        metaRow.addView(customer,new LinearLayout.LayoutParams(0,dp(46),1.35f));
 
         TextView dt=tv(db.now(),12);dt.setTextColor(MUTED);dt.setGravity(Gravity.CENTER);
         dt.setBackground(outline(Color.rgb(248,250,248),14));
@@ -571,11 +571,11 @@ public class MainActivity extends Activity {
             LinearLayout r=card(); r.setPadding(dp(7),dp(3),dp(7),dp(3));
             TextView info=tv("فاتورة "+no+"  •  "+(cn==null||cn.isEmpty()?"نقدي":cn)+"  •  "+fmt(total)+" ريال\n"+date,12);
             info.setMaxLines(3); info.setEllipsize(null); info.setIncludeFontPadding(true);
-            r.addView(info,new LinearLayout.LayoutParams(-1,dp(42)));
+            r.addView(info,new LinearLayout.LayoutParams(-1,dp(54)));
             r.setOnClickListener(v->showInvoiceDialog(id,no,cn,total,date));
             LinearLayout a=new LinearLayout(this); a.setOrientation(LinearLayout.HORIZONTAL);
             Button edit=button("تعديل"),del=button("حذف"); edit.setTextColor(GREEN);del.setTextColor(Color.RED);
-            a.addView(edit,new LinearLayout.LayoutParams(0,dp(34),1));a.addView(del,new LinearLayout.LayoutParams(0,dp(34),1));r.addView(a);
+            a.addView(edit,new LinearLayout.LayoutParams(0,dp(40),1));a.addView(del,new LinearLayout.LayoutParams(0,dp(40),1));r.addView(a);
             edit.setOnClickListener(v->invoice(true,id));
             del.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("حذف الفاتورة؟").setMessage("سيتم حذف الفاتورة وحركتها من حساب العميل.").setPositiveButton("حذف",(d,w)->{db.deleteInvoice(id);invoiceHistory();}).setNegativeButton("إلغاء",null).show());
             content.addView(r,new LinearLayout.LayoutParams(-1,dp(78))); addSpace(3);
@@ -756,16 +756,16 @@ public class MainActivity extends Activity {
         LinearLayout addBox=new LinearLayout(this); addBox.setOrientation(LinearLayout.VERTICAL);
         addBox.setPadding(dp(12),dp(10),dp(12),dp(10)); addBox.setBackground(outlined(CARD,1,16));
         TextView addTitle=tv("إضافة عميل جديد",17); addTitle.setTextColor(GREEN); addTitle.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
-        addBox.addView(addTitle,new LinearLayout.LayoutParams(-1,dp(38)));
+        addBox.addView(addTitle,new LinearLayout.LayoutParams(-1,dp(44)));
         EditText name=field("اسم العميل"), phone=phoneField("رقم الهاتف");
         customerNameInput=name;customerPhoneInput=phone;
         LinearLayout customerFields=new LinearLayout(this);customerFields.setOrientation(LinearLayout.HORIZONTAL);customerFields.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-        customerFields.addView(name,new LinearLayout.LayoutParams(0,dp(36),1.35f));customerFields.addView(phone,new LinearLayout.LayoutParams(0,dp(36),1f));addBox.addView(customerFields);
+        customerFields.addView(name,new LinearLayout.LayoutParams(0,dp(44),1.35f));customerFields.addView(phone,new LinearLayout.LayoutParams(0,dp(44),1f));addBox.addView(customerFields);
         addBox.addView(new Space(this),new LinearLayout.LayoutParams(1,dp(8)));
         LinearLayout contactActions=new LinearLayout(this);contactActions.setOrientation(LinearLayout.HORIZONTAL);
         Button pick=button("👤 جهات الاتصال"); pick.setTextColor(GREEN); pick.setOnClickListener(v->importContact());
         Button add=button("＋ إضافة العميل"); add.setTextColor(Color.WHITE); add.setBackgroundColor(GREEN);
-        contactActions.addView(pick,new LinearLayout.LayoutParams(0,dp(42),1));contactActions.addView(add,new LinearLayout.LayoutParams(0,dp(42),1));addBox.addView(contactActions);
+        contactActions.addView(pick,new LinearLayout.LayoutParams(0,dp(46),1));contactActions.addView(add,new LinearLayout.LayoutParams(0,dp(46),1));addBox.addView(contactActions);
         content.addView(addBox,new LinearLayout.LayoutParams(-1,-2)); addSpace(12);
         LinearLayout list=new LinearLayout(this);list.setOrientation(LinearLayout.VERTICAL);content.addView(list);
         final Runnable[] refresh={null};
@@ -778,8 +778,8 @@ public class MainActivity extends Activity {
                 row.setOnClickListener(v->account(id,n));row.setOnLongClickListener(v->{customerActions(id,n);return true;});
                 TextView balance=tv(balanceText(bal),13);balance.setTextColor(bal>0?Color.rgb(190,55,45):GREEN);balance.setTypeface(Typeface.DEFAULT,Typeface.BOLD);balance.setGravity(Gravity.CENTER);balance.setMaxLines(2);balance.setEllipsize(null);
                 TextView title=tv(n,15);title.setTextColor(GREEN);title.setTypeface(Typeface.DEFAULT,Typeface.BOLD);title.setGravity(Gravity.CENTER_VERTICAL|Gravity.RIGHT);title.setMaxLines(2);title.setEllipsize(null);
-                row.addView(balance,new LinearLayout.LayoutParams(0,dp(44),1.05f));row.addView(title,new LinearLayout.LayoutParams(0,dp(44),1.65f));
-                list.addView(row,new LinearLayout.LayoutParams(-1,dp(52)));addSpaceTo(list,6);
+                row.addView(balance,new LinearLayout.LayoutParams(0,dp(52),1.05f));row.addView(title,new LinearLayout.LayoutParams(0,dp(52),1.65f));
+                list.addView(row,new LinearLayout.LayoutParams(-1,dp(62)));addSpaceTo(list,8);
             }c.close();
         };
         add.setOnClickListener(v->{String n=name.getText().toString().trim();if(n.isEmpty()){Toast.makeText(this,"اكتب اسم العميل",Toast.LENGTH_SHORT).show();return;}db.addCustomer(n,phone.getText().toString().trim());name.setText("");phone.setText("");refresh[0].run();});
@@ -1001,7 +1001,7 @@ public class MainActivity extends Activity {
 
                 TextView info=tv(itemName+"\nالكمية: "+fmt(q)+"   •   الحد الأدنى: "+fmt(m)+(q<=m?"   ⚠ منخفض":""),13);
                 info.setTextColor(q<=m?Color.rgb(170,75,35):TEXT);
-                row.addView(info,new LinearLayout.LayoutParams(-1,dp(42)));
+                row.addView(info,new LinearLayout.LayoutParams(-1,dp(54)));
 
                 LinearLayout actions=new LinearLayout(this);
                 actions.setOrientation(LinearLayout.HORIZONTAL);
@@ -1031,7 +1031,7 @@ public class MainActivity extends Activity {
                         Toast.makeText(this,"تم حذف الصنف",Toast.LENGTH_SHORT).show();
                     }).show());
 
-                actions.addView(editBtn,new LinearLayout.LayoutParams(0,dp(34),1));
+                actions.addView(editBtn,new LinearLayout.LayoutParams(0,dp(40),1));
                 actions.addView(deleteBtn,new LinearLayout.LayoutParams(0,dp(34),1));
                 row.addView(actions);
                 list.addView(row,new LinearLayout.LayoutParams(-1,dp(82)));
@@ -1074,7 +1074,7 @@ public class MainActivity extends Activity {
                 String title=c.getString(2),date=c.getString(4);double amount=c.getDouble(3);
                 LinearLayout r=card(); r.setPadding(dp(8),dp(3),dp(8),dp(3));
                 TextView v=tv(title+"\n"+fmt(amount)+" ريال  •  "+(date==null?"":date),11);v.setMaxLines(3);v.setEllipsize(null);
-                r.addView(v,new LinearLayout.LayoutParams(-1,dp(46)));content.addView(r,new LinearLayout.LayoutParams(-1,dp(52)));addSpace(2);
+                r.addView(v,new LinearLayout.LayoutParams(-1,dp(58)));content.addView(r,new LinearLayout.LayoutParams(-1,dp(64)));addSpace(5);
             }
             c.close();
         }catch(Exception e){
