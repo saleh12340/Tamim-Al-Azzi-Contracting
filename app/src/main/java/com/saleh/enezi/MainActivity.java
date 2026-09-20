@@ -599,7 +599,7 @@ public class MainActivity extends Activity {
                 if(y+layout.getHeight()>pageH-margin){pdf.finishPage(page);pageNo++;page=pdf.startPage(new android.graphics.pdf.PdfDocument.PageInfo.Builder(pageW,pageH,pageNo).create());canvas=page.getCanvas();y=margin;}
                 canvas.save();canvas.translate(margin,y);layout.draw(canvas);canvas.restore();y+=layout.getHeight()+5;
             }
-            if(page!=null)pdf.finishPage(page);FileOutputStream out=new FileOutputStream(file);pdf.writeTo(out);out.close();return file;
+            if(page!=null)pdf.finishPage(page);try(FileOutputStream out=new FileOutputStream(file)){pdf.writeTo(out);}catch(java.io.IOException e){throw new RuntimeException(e);}return file;
         }finally{pdf.close();}
     }
     void shareAccountPdfToWhatsApp(long id,String name){
