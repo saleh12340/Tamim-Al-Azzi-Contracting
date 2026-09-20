@@ -339,7 +339,7 @@ public class MainActivity extends Activity {
         if(edit){Cursor c=db.invoiceLines(invoiceId);while(c.moveToNext())lines.add(new Line(c.getString(1),c.getDouble(2),c.getDouble(3)));c.close();}
 
         TextView customerBalance=tv("رصيد العميل: 0",11);
-        customerBalance.setTextColor(GREEN);customerBalance.setGravity(Gravity.CENTER_RIGHT|Gravity.CENTER_VERTICAL);
+        customerBalance.setTextColor(GREEN);customerBalance.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
         customerBalance.setBackground(outline(Color.rgb(241,247,242),8));
         content.addView(customerBalance,new LinearLayout.LayoutParams(-1,dp(30)));addSpace(3);
         TextView paymentMode=tv("نوع السداد: نقدي — ويمكن ترك الباقي آجلًا",10);
@@ -980,14 +980,6 @@ public class MainActivity extends Activity {
             text.append("\n");if(t==1)debit+=a;else credit+=a;}c.close();}
         text.append("\nعليه: ").append(fmt(debit)).append(" ريال • له: ").append(fmt(credit)).append(" ريال");
         text.append("\nالرصيد الحالي: ").append(balanceText(db.balance(customerId)));
-        shareWhatsAppToCustomer(db.phoneByName(name),text.toString(),null);
-    }
-
-    void shareSelectedTransactions(long customerId,String name,ArrayList<Long> ids){
-        StringBuilder text=new StringBuilder("بقالة العزي\\nكشف عمليات: ").append(name).append("\\n");
-        double debit=0,credit=0;
-        for(Long tid:ids){Cursor c=db.transactionById(tid);if(c.moveToFirst()){String d=c.getString(3);double a=c.getDouble(4);int t=c.getInt(5);text.append(c.getString(2)).append(" | ").append(d==null?"":d).append(" | ").append(t==1?"عليه: ":"له: ").append(fmt(a)).append(" ريال\\n");if(t==1)debit+=a;else credit+=a;}c.close();}
-        text.append("إجمالي المحدد عليه: ").append(fmt(debit)).append(" ريال\\nإجمالي المحدد له: ").append(fmt(credit)).append(" ريال\\n").append(balanceText(db.balance(customerId)));
         shareWhatsAppToCustomer(db.phoneByName(name),text.toString(),null);
     }
 
