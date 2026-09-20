@@ -1530,7 +1530,11 @@ public class MainActivity extends Activity {
         Button save=action("💾 حفظ فاتورة الشراء",GREEN);save.setTextSize(12);content.addView(save,new LinearLayout.LayoutParams(-1,dp(42)));addSpace(5);
         save.setOnClickListener(v->{try{
             String sn=supplier.getText().toString().trim(),no=invoiceNo.getText().toString().trim();if(sn.isEmpty()||no.isEmpty()||lines.isEmpty())throw new Exception();double sum=0;for(PurchaseLine l:lines)sum+=l.total;
-            db.supplier(sn,"");long pid=db.addPurchase(no,sn,sum,db.now());db.replacePurchaseLines(pid,lines);db.updateStockFromPurchase(lines);
+            db.supplier(sn,"");
+            long pid=db.addPurchase(no,sn,sum,db.now());
+            if(pid<=0)throw new Exception("تعذر حفظ الفاتورة");
+            db.replacePurchaseLines(pid,lines);
+            db.updateStockFromPurchase(lines);
             Toast.makeText(this,"تم حفظ فاتورة الشراء وتحديث المخزون",Toast.LENGTH_LONG).show();purchaseInvoices();
         }catch(Exception e){Toast.makeText(this,"تحقق من اسم المورد ورقم الفاتورة والأصناف",Toast.LENGTH_SHORT).show();}});
         redraw.run();calc.run();
