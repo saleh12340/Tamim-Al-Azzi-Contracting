@@ -39,13 +39,13 @@ public class BackupReceiver extends BroadcastReceiver {
         String fn="نسخة_احتياطية_"+new SimpleDateFormat("yyyy-MM-dd_HH-mm",Locale.US).format(new Date())+".db";
         File src=c.getDatabasePath("enezi.db");
         if(!src.exists())return;
-        DB helper=null;
-        File tmp=new File(c.getCacheDir(),"backup_enezi.db");
+        SQLiteDatabase d=null;
         try{
-            helper=new DB(c);
-            SQLiteDatabase d=helper.getWritableDatabase();
+            d=SQLiteDatabase.openDatabase(src.getPath(),null,SQLiteDatabase.OPEN_READWRITE);
             try{d.execSQL("PRAGMA wal_checkpoint(FULL)");}catch(Exception ignored){}
-            helper.close();
+            d.close();
+            d=null;
+        }catch(Exception e){try{if(d!=null)d.close();}catch(Exception ignored){}}
             try(InputStream in=new FileInputStream(src);OutputStream out=new FileOutputStream(tmp)){
                 byte[] buf=new byte[16384];int n;while((n=in.read(buf))>0)out.write(buf,0,n);
                 out.flush();
