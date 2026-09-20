@@ -471,7 +471,7 @@ public class MainActivity extends Activity {
             remainingLabel.setText("المتبقي: "+fmt(remaining)+" ريال"); updateCustomerBalance.run();
         };
 
-        restoreDraft.setOnClickListener(v->restoreInvoiceDraft(no,customer,paid,lines,redraw));
+        restoreDraft.setOnClickListener(v->restoreInvoiceDraft(no,customer,paid,lines,redraw[0]));
         add.setOnClickListener(v->{
             try{
                 double t=Double.parseDouble(total.getText().toString().trim());
@@ -479,7 +479,7 @@ public class MainActivity extends Activity {
                 String n=item.getText().toString().trim();
                 if(n.isEmpty()||q<=0||t<0)throw new Exception();
                 lines.add(new Line(n,q,t));
-                redraw.run();
+                redraw[0].run();
                 total.setText("");qty.setText("1");item.setText("");total.requestFocus();
             }catch(Exception e){
                 Toast.makeText(this,"أدخل الإجمالي والكمية واسم الصنف بشكل صحيح",Toast.LENGTH_SHORT).show();
@@ -488,7 +488,7 @@ public class MainActivity extends Activity {
 
         Button clear=btn("مسح الأصناف");clear.setTextColor(MUTED);
         content.addView(clear,new LinearLayout.LayoutParams(-1,dp(36)));
-        clear.setOnClickListener(v->{lines.clear();redraw.run();});
+        clear.setOnClickListener(v->{lines.clear();redraw[0].run();});
         addSpace(6);
 
         Button save=action(edit?"💾  حفظ التعديل":"💾  حفظ الفاتورة",GREEN);
@@ -506,9 +506,9 @@ public class MainActivity extends Activity {
         });
         print.setOnClickListener(v->preview(no.getText().toString(),customer.getText().toString(),lines,totalOf(lines),edit,invoiceId));
         item.setOnEditorActionListener((v,a,e)->{add.performClick();return true;});
-        customer.addTextChangedListener(new android.text.TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int c,int a){}public void onTextChanged(CharSequence s,int st,int b,int c){redraw.run();}public void afterTextChanged(android.text.Editable e){}});
-        paid.addTextChangedListener(new android.text.TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int c,int a){}public void onTextChanged(CharSequence s,int st,int b,int c){redraw.run();}public void afterTextChanged(android.text.Editable e){}});
-        redraw.run();
+        customer.addTextChangedListener(new android.text.TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int c,int a){}public void onTextChanged(CharSequence s,int st,int b,int c){redraw[0].run();}public void afterTextChanged(android.text.Editable e){}});
+        paid.addTextChangedListener(new android.text.TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int c,int a){}public void onTextChanged(CharSequence s,int st,int b,int c){redraw[0].run();}public void afterTextChanged(android.text.Editable e){}});
+        redraw[0].run();
     }
 
     double totalOf(ArrayList<Line> ls){double x=0;for(Line l:ls)x+=l.total;return x;}
