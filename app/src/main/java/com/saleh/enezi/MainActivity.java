@@ -1109,7 +1109,7 @@ public class MainActivity extends Activity {
                 int operationColor=invoiceEntry?(invoiceSettled?BLUE:RED):(type==1?RED:BLUE);
                 LinearLayout r=new LinearLayout(this);r.setOrientation(LinearLayout.HORIZONTAL);r.setGravity(Gravity.CENTER_VERTICAL);r.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);r.setPadding(dp(1),dp(1),dp(1),dp(1));r.setBackground(outlined(CARD,1,8));
                 TextView rv=tv(balanceText(runningAfter),8);rv.setTextColor(balanceColor(runningAfter));rv.setGravity(Gravity.CENTER);rv.setMaxLines(2);
-                TextView av=tv((type==1?"عليه ":"له ")+fmt(a),8);av.setTextColor(operationColor);av.setGravity(Gravity.CENTER);av.setMaxLines(2);
+                TextView av=tv((type==1?"عليه ":"له / دفعة ")+fmt(a),8);av.setTextColor(operationColor);av.setTypeface(Typeface.DEFAULT,Typeface.BOLD);av.setGravity(Gravity.CENTER);av.setMaxLines(2);
                 TextView iv=tv(invNo.isEmpty()?"—":invNo,8);iv.setGravity(Gravity.CENTER);iv.setMaxLines(2);
                 TextView dv=tv(d==null||d.trim().isEmpty()?"عملية مالية":d,8);dv.setGravity(Gravity.CENTER);dv.setMaxLines(3);dv.setEllipsize(null);
                 TextView dt=tv(date,7);dt.setTextColor(MUTED);dt.setGravity(Gravity.CENTER);dt.setMaxLines(2);
@@ -1539,6 +1539,8 @@ public class MainActivity extends Activity {
                 final double fa=amount;
                 final String fd=date==null?"":date;
                 final long fid=sortId;
+                int operationType=c.getInt(6);
+                int activityColor=(kind==2 && operationType==1)?RED:BLUE;
 
                 LinearLayout row=card();
                 row.setPadding(dp(7),dp(kind==1?5:3),dp(7),dp(kind==1?5:3));
@@ -1547,7 +1549,7 @@ public class MainActivity extends Activity {
                 String label=kind==1?"🧾 فاتورة":"عملية";
                 String shortTitle=ft;
                 TextView main=tv(label+"  •  "+shortTitle,kind==1?13:11);
-                main.setTextColor(kind==1?GREEN:TEXT);
+                main.setTextColor(kind==1?GREEN:activityColor);
                 main.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
                 main.setMaxLines(2);main.setEllipsize(null);
                 row.addView(main,new LinearLayout.LayoutParams(-1,dp(kind==1?34:28)));
@@ -1562,7 +1564,8 @@ public class MainActivity extends Activity {
                     row.setBackground(outlined(Color.rgb(250,253,250),1,12));
                     content.addView(row,new LinearLayout.LayoutParams(-1,dp(66)));
                 }else{
-                    row.setBackground(outlined(CARD,1,9));
+                    int tint=operationType==1?Color.rgb(255,244,242):Color.rgb(241,248,255);
+                    row.setBackground(outlined(tint,1,9));
                     content.addView(row,new LinearLayout.LayoutParams(-1,dp(52)));
                 }
                 addSpace(2);
@@ -1713,7 +1716,7 @@ public class MainActivity extends Activity {
         Cursor invoices(){return getReadableDatabase().rawQuery("SELECT id,no,customer,total,date FROM invoices ORDER BY datetime(date) DESC, id DESC LIMIT 100",null);}
         Cursor recentActivity(){
             android.database.MatrixCursor out=new android.database.MatrixCursor(
-                new String[]{"kind","ref","title","amount","date","sort_id"});
+                new String[]{"kind","ref","title","amount","date","sort_id","operation_type"});
             ArrayList<Object[]> rows=new ArrayList<>();
             SQLiteDatabase d=getReadableDatabase();
             Cursor inv=null,tr=null;
@@ -1724,7 +1727,7 @@ public class MainActivity extends Activity {
                     String no=inv.getString(1)==null?"":inv.getString(1);
                     String customer=inv.getString(2);
                     if(customer==null||customer.trim().isEmpty())customer="نقدي";
-                    rows.add(new Object[]{1,no,"فاتورة "+no+" • "+customer,inv.getDouble(3),inv.getString(4),id});
+                    rows.add(new Object[]{1,no,"فاتورة "+no+" • "+customer,inv.getDouble(3),inv.getString(4),id,0});
                 }
             }finally{if(inv!=null)inv.close();}
             try{
@@ -1737,7 +1740,7 @@ public class MainActivity extends Activity {
                     if(customer==null)customer="";
                     String title=(details==null||details.trim().isEmpty()?"عملية مالية":details.trim());
                     if(!customer.trim().isEmpty()) title+=" • "+customer.trim();
-                    rows.add(new Object[]{2,String.valueOf(tr.getLong(0)),title,tr.getDouble(2),tr.getString(3),tr.getLong(0)});
+                    rows.add(new Object[]{2,String.valueOf(tr.getLong(0)),title,tr.getDouble(2),tr.getString(3),tr.getLong(0),tr.getInt(6)});
                 }
             }finally{if(tr!=null)tr.close();}
             Collections.sort(rows,(a,b)->{
