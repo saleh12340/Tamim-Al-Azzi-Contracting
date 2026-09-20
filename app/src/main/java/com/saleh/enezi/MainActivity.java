@@ -7,6 +7,8 @@ import android.graphics.Typeface;
 import android.graphics.Rect;
 import android.graphics.drawable.GradientDrawable;
 import android.content.*;
+import android.content.pm.PackageManager;
+import android.provider.ContactsContract;
 import android.database.Cursor;
 import android.database.sqlite.*;
 import android.view.*;
@@ -16,6 +18,8 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class MainActivity extends Activity {
+    static final int REQ_CONTACTS=4101, PICK_CONTACT=4102;
+    EditText customerNameInput, customerPhoneInput;
     static final int GREEN=Color.rgb(24,112,61), DARK=Color.rgb(20,70,40), GOLD=Color.rgb(232,169,45);
     static final int BG=Color.rgb(246,248,246), TEXT=Color.rgb(32,43,36), MUTED=Color.rgb(105,116,108), CARD=Color.WHITE;
     DB db; LinearLayout root,content,bottom; TextView pageTitle; int textSize=16;
@@ -65,6 +69,12 @@ public class MainActivity extends Activity {
         root.getViewTreeObserver().addOnGlobalLayoutListener(()->{Rect rr=new Rect();root.getWindowVisibleDisplayFrame(rr);int diff=root.getRootView().getHeight()-rr.bottom;if(bottom!=null)bottom.setVisibility(diff>root.getRootView().getHeight()*0.18?View.GONE:View.VISIBLE);});
     }
     void navigate(String n){hideKeyboard(); if(n.equals("الرئيسية"))home();else if(n.equals("العملاء")||n.equals("الحسابات"))customers();else if(n.equals("الفواتير"))invoice();else if(n.equals("المخزون"))inventory();else reports();}
+    void importContact(){
+        if(Build.VERSION.SDK_INT>=23 && checkSelfPermission("android.permission.READ_CONTACTS")!=PackageManager.PERMISSION_GRANTED){ requestPermissions(new String[]{"android.permission.READ_CONTACTS"},REQ_CONTACTS); return; }
+        try{ Intent i=new Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI); startActivityForResult(i,PICK_CONTACT); }catch(Exception e){ Toast.makeText(this,"تعذر فتح جهات الاتصال",Toast.LENGTH_SHORT).show(); }
+    }
+    @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){ super.onRequestPermissionsResult(requestCode,permissions,grantResults); if(requestCode==REQ_CONTACTS){ if(grantResults.length>0&&grantResults[0]==PackageManager.PERMISSION_GRANTED) importContact(); else Toast.makeText(this,"يلزم السماح بالوصول إلى جهات الاتصال لاستيراد الاسم والرقم",Toast.LENGTH_LONG).show(); } }
+    @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){ super.onActivityResult(requestCode,resultCode,data); if(requestCode==PICK_CONTACT&&resultCode==RESULT_OK&&data!=null){ Cursor c=null; try{ c=getContentResolver().query(data.getData(),new String[]{ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,ContactsContract.CommonDataKinds.Phone.NUMBER},null,null,null); if(c!=null&&c.moveToFirst()){ String n=c.getString(0),p=c.getString(1); if(customerNameInput!=null)customerNameInput.setText(n==null?"":n); if(customerPhoneInput!=null)customerPhoneInput.setText(p==null?"":p); if(customerNameInput!=null)customerNameInput.requestFocus(); Toast.makeText(this,"تم استيراد اسم العميل ورقم الهاتف",Toast.LENGTH_SHORT).show(); } }catch(Exception e){Toast.makeText(this,"تعذر قراءة بيانات جهة الاتصال",Toast.LENGTH_SHORT).show();}finally{if(c!=null)c.close();} } }
     void hideKeyboard(){View v=getCurrentFocus();if(v!=null){((InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(v.getWindowToken(),0);v.clearFocus();}}
 
     TextView cardTitle(String title,String sub){
@@ -152,8 +162,14 @@ public class MainActivity extends Activity {
 
     void customers(){
         base("الحسابات");section("بحث وإضافة عميل");
-        EditText search=field("بحث بالاسم أو الهاتف");addField(search);EditText name=field("اسم العميل");addField(name);EditText phone=field("رقم الهاتف");addField(phone);
-        Button add=button("＋ إضافة عميل");add.setTextColor(Color.WHITE);add.setBackgroundColor(GREEN);content.addView(add,new LinearLayout.LayoutParams(-1,48));addSpace(8);
+        EditText search=field("بحث بالاسم أو الهاتف");addField(search);
+        LinearLayout addBox=new LinearLayout(this); addBox.setOrientation(LinearLayout.VERTICAL); addBox.setPadding(14,12,14,12); addBox.setBackground(outlined(CARD,1,16));
+        TextView addTitle=tv("بيانات العميل",17); addTitle.setTextColor(GREEN); addTitle.setTypeface(Typeface.DEFAULT,Typeface.BOLD); addBox.addView(addTitle,new LinearLayout.LayoutParams(-1,40));
+        EditText name=field("اسم العميل"); EditText phone=field("رقم الهاتف"); customerNameInput=name; customerPhoneInput=phone; addBox.addView(name,new LinearLayout.LayoutParams(-1,56)); addSpaceInside(addBox,7); addBox.addView(phone,new LinearLayout.LayoutParams(-1,56)); addSpaceInside(addBox,8);
+        LinearLayout contactActions=new LinearLayout(this); contactActions.setOrientation(LinearLayout.HORIZONTAL);
+        Button pick=button("👤 استيراد من جهات الاتصال"); pick.setTextColor(GREEN); pick.setOnClickListener(v->importContact());
+        Button add=button("＋ إضافة العميل"); add.setTextColor(Color.WHITE); add.setBackgroundColor(GREEN);
+        contactActions.addView(pick,new LinearLayout.LayoutParams(0,54,1.15f)); contactActions.addView(add,new LinearLayout.LayoutParams(0,54,1)); addBox.addView(contactActions); content.addView(addBox,new LinearLayout.LayoutParams(-1,-2)); addSpace(12);
         LinearLayout list=new LinearLayout(this);list.setOrientation(LinearLayout.VERTICAL);content.addView(list);
         Runnable refresh=()->{list.removeAllViews();Cursor c=db.customers(search.getText().toString());while(c.moveToNext()){long id=c.getLong(0);String n=c.getString(1),p=c.getString(2);double bal=db.balance(id);Button b=button(n+"\n"+(p.isEmpty()?"بدون رقم":p)+"   •   "+balanceText(bal));b.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);b.setTextSize(14);b.setBackgroundColor(CARD);b.setOnClickListener(v->account(id,n));list.addView(b,new LinearLayout.LayoutParams(-1,68));addSpaceTo(list,6);}c.close();};
         add.setOnClickListener(v->{String n=name.getText().toString().trim();if(n.isEmpty()){Toast.makeText(this,"اكتب اسم العميل",Toast.LENGTH_SHORT).show();return;}db.addCustomer(n,phone.getText().toString().trim());name.setText("");phone.setText("");refresh.run();});
