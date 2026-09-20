@@ -232,7 +232,15 @@ public class MainActivity extends Activity {
 
         EditText total=numberField("الإجمالي");
         EditText qty=numberField("الكمية");
-        EditText item=field("اسم الصنف / التفاصيل");
+        AutoCompleteTextView item=new AutoCompleteTextView(this);
+        item.setHint("اسم الصنف / التفاصيل"); item.setTextSize(13); item.setSingleLine(true); item.setTextColor(TEXT); item.setHintTextColor(MUTED);
+        item.setPadding(dp(7),dp(2),dp(7),dp(2)); item.setBackground(outlined(CARD,1,10)); item.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
+        item.setLayoutDirection(View.LAYOUT_DIRECTION_RTL); item.setTextDirection(View.TEXT_DIRECTION_RTL); item.setSelectAllOnFocus(true);
+        item.setOnClickListener(v->item.selectAll());
+        item.setOnFocusChangeListener((v,has)->{if(has)item.postDelayed(()->item.selectAll(),60);});
+        ArrayList<String> itemSuggestions=new ArrayList<>(Arrays.asList("السمن"));
+        Cursor itemCursor=db.items(); while(itemCursor.moveToNext()) itemSuggestions.add(itemCursor.getString(1)); itemCursor.close();
+        item.setThreshold(1); item.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_dropdown_item_1line,itemSuggestions));
         total.setInputType(2|8192);qty.setInputType(2|8192);qty.setText("1");
 
         // لا يوجد سعر وحدة في صف الإدخال؛ يُعرض محسوباً داخل صندوق تفاصيل الفاتورة بالأسفل.
@@ -338,10 +346,22 @@ public class MainActivity extends Activity {
             if(edit){String oldNo=db.invoiceNo(oldId);db.deleteInvoiceTransaction(oldNo);db.updateInvoice(oldId,no,name,total,date);db.replaceInvoiceLines(oldId,lines);}
             else{long id=db.addInvoice(no,name,total,date);db.replaceInvoiceLines(id,lines);}
             db.addTransactionOnce(cid,total,"فاتورة مبيعات رقم "+no,date);
+            cacheLastInvoice(no,name,lines,total,date);
             invoiceHistory(); showPostSaveActions(no,name,lines,total,cid);
         }).setNegativeButton("إلغاء",null).show();
     }
 
+    void cacheLastInvoice(String no,String customer,ArrayList<Line> lines,double total,String date){
+        try{
+            File dir=new File(getCacheDir(),"invoices"); if(!dir.exists())dir.mkdirs();
+            File file=new File(dir,"last_invoice.txt");
+            StringBuilder x=new StringBuilder();
+            x.append("رقم الفاتورة: ").append(no).append("\nالعميل: ").append(customer).append("\nالتاريخ: ").append(date).append("\n");
+            for(Line l:lines)x.append(l.name).append(" | ").append(fmt(l.qty)).append(" | ").append(fmt(l.total)).append("\n");
+            x.append("الإجمالي: ").append(fmt(total)).append(" ريال");
+            FileOutputStream out=new FileOutputStream(file,false);out.write(x.toString().getBytes("UTF-8"));out.close();
+        }catch(Exception ignored){}
+    }
     int dp(int v){return (int)(v*getResources().getDisplayMetrics().density+0.5f);}
     GradientDrawable bg(int color,float radius){return rounded(color,dp((int)radius));}
     GradientDrawable outline(int color,float radius){return outlined(color,1,dp((int)radius));}
@@ -416,7 +436,23 @@ public class MainActivity extends Activity {
         if(dialog.getWindow()!=null){dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);dialog.getWindow().setLayout(dp(320),WindowManager.LayoutParams.WRAP_CONTENT);dialog.getWindow().setGravity(Gravity.CENTER);}
     }
 
-    void invoiceHistory(){base("الفواتير");section("سجل الفواتير");Cursor c=db.invoices();while(c.moveToNext()){long id=c.getLong(0);String no=c.getString(1),cn=c.getString(2),date=c.getString(3);double total=c.getDouble(4);LinearLayout r=card();r.addView(tv("فاتورة "+no+"\n"+(cn==null||cn.isEmpty()?"نقدي":cn)+"   •   "+fmt(total)+" ريال\n"+date,14));LinearLayout a=new LinearLayout(this);Button edit=button("تعديل"),del=button("حذف");edit.setTextColor(GREEN);del.setTextColor(Color.RED);a.addView(edit,new LinearLayout.LayoutParams(0,46,1));a.addView(del,new LinearLayout.LayoutParams(0,46,1));r.addView(a);edit.setOnClickListener(v->invoice(true,id));del.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("حذف الفاتورة؟").setMessage("سيتم حذف الفاتورة وحركتها من حساب العميل.").setPositiveButton("حذف",(d,w)->{db.deleteInvoice(id);invoiceHistory();}).setNegativeButton("إلغاء",null).show());addCard(r,128);}c.close();}
+    void invoiceHistory(){
+        base("الفواتير"); section("سجل الفواتير");
+        Cursor c=db.invoices();
+        while(c.moveToNext()){
+            long id=c.getLong(0); String no=c.getString(1),cn=c.getString(2),date=c.getString(4); double total=c.getDouble(3);
+            LinearLayout r=card(); r.setPadding(dp(7),dp(3),dp(7),dp(3));
+            TextView info=tv("فاتورة "+no+"  •  "+(cn==null||cn.isEmpty()?"نقدي":cn)+"  •  "+fmt(total)+" ريال\n"+date,12);
+            info.setMaxLines(2); info.setEllipsize(TextUtils.TruncateAt.END); info.setIncludeFontPadding(true);
+            r.addView(info,new LinearLayout.LayoutParams(-1,dp(42)));
+            LinearLayout a=new LinearLayout(this); a.setOrientation(LinearLayout.HORIZONTAL);
+            Button edit=button("تعديل"),del=button("حذف"); edit.setTextColor(GREEN);del.setTextColor(Color.RED);
+            a.addView(edit,new LinearLayout.LayoutParams(0,dp(34),1));a.addView(del,new LinearLayout.LayoutParams(0,dp(34),1));r.addView(a);
+            edit.setOnClickListener(v->invoice(true,id));
+            del.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("حذف الفاتورة؟").setMessage("سيتم حذف الفاتورة وحركتها من حساب العميل.").setPositiveButton("حذف",(d,w)->{db.deleteInvoice(id);invoiceHistory();}).setNegativeButton("إلغاء",null).show());
+            content.addView(r,new LinearLayout.LayoutParams(-1,dp(78))); addSpace(3);
+        } c.close();
+    }
     String receiptText(String no,String customer,LinearLayout rows,double total,long cid){StringBuilder s=new StringBuilder("بقالة العزي\nفاتورة رقم: ").append(no).append("\nالتاريخ: ").append(db.now()).append("\n");if(!customer.isEmpty())s.append("العميل: ").append(customer).append("\n");s.append("------------------------------\n");for(int i=0;i<rows.getChildCount();i++){View ch=rows.getChildAt(i);if(ch instanceof LinearLayout){LinearLayout r=(LinearLayout)ch;StringBuilder q=new StringBuilder();for(int j=0;j<r.getChildCount();j++){View x=r.getChildAt(j);if(x instanceof TextView){String z=((TextView)x).getText().toString().trim();if(!z.isEmpty()){if(q.length()>0)q.append(" | ");q.append(z);}}}if(q.length()>0)s.append(q).append("\n");}}s.append("------------------------------\nالإجمالي: ").append(fmt(total)).append(" ريال\n");if(cid>0)s.append(balanceText(db.balance(cid))).append("\n");s.append("شكراً لتعاملكم معنا");return s.toString();}
     String balanceText(double b){return b>0?"رصيد العميل عليه: "+fmt(b)+" ريال":b<0?"رصيد العميل له: "+fmt(Math.abs(b))+" ريال":"رصيد العميل: 0 ريال";}
     void shareAccountPdfToWhatsApp(long id,String name){
@@ -804,7 +840,17 @@ public class MainActivity extends Activity {
                 14);r.setBackgroundColor(CARD);r.setTextColor(q<=m?Color.rgb(170,75,35):TEXT);list.addView(r,new LinearLayout.LayoutParams(-1,dp(68)));addSpaceTo(list,5);}c.close();};
         add.setOnClickListener(v->{try{db.addItem(name.getText().toString().trim(),Double.parseDouble(qty.getText().toString()),Double.parseDouble(min.getText().toString()));name.setText("");qty.setText("");min.setText("");refresh.run();}catch(Exception e){Toast.makeText(this,"أدخل بيانات الصنف بشكل صحيح",Toast.LENGTH_SHORT).show();}});refresh.run();
     }
-    void reports(){base("التقارير");section("ملخص سريع");cardTitle("المبيعات","عدد الفواتير: "+db.invoiceCount()+"   •   إجمالي المبيعات: "+fmt(db.sales())+" ريال");cardTitle("العملاء","عدد العملاء: "+db.customerCount());section("آخر الفواتير");Cursor c=db.invoices();while(c.moveToNext())content.addView(tv("فاتورة "+c.getString(1)+"  •  "+c.getString(2)+"\n"+fmt(c.getDouble(4))+" ريال   •   "+c.getString(3),14));c.close();}
+    void reports(){
+        base("التقارير"); section("ملخص سريع");
+        cardTitle("المبيعات","عدد الفواتير: "+db.invoiceCount()+"   •   إجمالي المبيعات: "+fmt(db.sales())+" ريال");
+        cardTitle("العملاء","عدد العملاء: "+db.customerCount());
+        section("أحدث الفواتير والعمليات");
+        Cursor c=db.invoices();
+        while(c.moveToNext()){
+            TextView v=tv("فاتورة "+c.getString(1)+"  •  "+(c.getString(2)==null||c.getString(2).isEmpty()?"نقدي":c.getString(2))+"\n"+fmt(c.getDouble(3))+" ريال  •  "+c.getString(4),12);
+            v.setMaxLines(2);v.setEllipsize(TextUtils.TruncateAt.END);v.setBackground(outline(CARD,8));content.addView(v,new LinearLayout.LayoutParams(-1,dp(48)));addSpace(3);
+        } c.close();
+    }
 
     static class DB extends SQLiteOpenHelper{
         DB(Context c){super(c,"enezi.db",null,5);}
@@ -818,13 +864,13 @@ public class MainActivity extends Activity {
         void addTransaction(long id,double a,String d,int type,String date){if(id<1)return;ContentValues v=new ContentValues();v.put("customer_id",id);v.put("amount",a);v.put("details",d);v.put("type",type);v.put("date",date);getWritableDatabase().insert("transactions",null,v);}
         double balance(long id){Cursor c=getReadableDatabase().rawQuery("SELECT COALESCE(SUM(CASE WHEN type=1 THEN amount ELSE -amount END),0) FROM transactions WHERE customer_id=?",new String[]{String.valueOf(id)});double x=c.moveToFirst()?c.getDouble(0):0;c.close();return x;}
         Cursor customers(String q){return getReadableDatabase().rawQuery("SELECT id,name,COALESCE(phone,'') FROM customers WHERE name LIKE ? OR phone LIKE ? ORDER BY name",new String[]{"%"+q+"%","%"+q+"%"});}
-        Cursor transactions(long id){return getReadableDatabase().rawQuery("SELECT id,date,details,amount,type FROM transactions WHERE customer_id=? ORDER BY id DESC",new String[]{String.valueOf(id)});}
+        Cursor transactions(long id){return getReadableDatabase().rawQuery("SELECT id,date,details,amount,type FROM transactions WHERE customer_id=? ORDER BY datetime(date) DESC, id DESC",new String[]{String.valueOf(id)});}
         Cursor items(){return getReadableDatabase().rawQuery("SELECT id,name,qty,min_qty FROM items ORDER BY name",null);}
         void addItem(String n,double q,double m){if(n.isEmpty()||q<0||m<0)throw new IllegalArgumentException();ContentValues v=new ContentValues();v.put("name",n);v.put("qty",q);v.put("min_qty",m);getWritableDatabase().insert("items",null,v);}
         int transactionCount(long id){Cursor c=getReadableDatabase().rawQuery("SELECT COUNT(*) FROM transactions WHERE customer_id=?",new String[]{String.valueOf(id)});int x=c.moveToFirst()?c.getInt(0):0;c.close();return x;}
         String invoiceNoFromTransaction(String details){if(details==null)return "";String p="فاتورة مبيعات رقم ";return details.startsWith(p)?details.substring(p.length()).trim():"";}
         String invoiceCompactDetails(String no){Cursor c=getReadableDatabase().rawQuery("SELECT name,qty,total FROM invoice_items WHERE invoice_id=(SELECT id FROM invoices WHERE no=? ORDER BY id DESC LIMIT 1) ORDER BY id",new String[]{no});StringBuilder s=new StringBuilder("تفاصيل: ");int n=0;while(c.moveToNext()&&n<6){if(n>0)s.append(" • ");s.append(c.getString(0)).append(" × ").append(fmt(c.getDouble(1))).append(" = ").append(fmt(c.getDouble(2)));n++;}c.close();return n==0?"تفاصيل الفاتورة غير متاحة":s.toString();}
-        Cursor invoices(){return getReadableDatabase().rawQuery("SELECT id,no,customer,total,date FROM invoices ORDER BY id DESC LIMIT 100",null);}
+        Cursor invoices(){return getReadableDatabase().rawQuery("SELECT id,no,customer,total,date FROM invoices ORDER BY datetime(date) DESC, id DESC LIMIT 100",null);}
         int invoiceCount(){Cursor c=getReadableDatabase().rawQuery("SELECT COUNT(*) FROM invoices",null);int x=c.moveToFirst()?c.getInt(0):0;c.close();return x;}
         int customerCount(){Cursor c=getReadableDatabase().rawQuery("SELECT COUNT(*) FROM customers",null);int x=c.moveToFirst()?c.getInt(0):0;c.close();return x;}
         double sales(){Cursor c=getReadableDatabase().rawQuery("SELECT COALESCE(SUM(total),0) FROM invoices",null);double x=c.moveToFirst()?c.getDouble(0):0;c.close();return x;}
