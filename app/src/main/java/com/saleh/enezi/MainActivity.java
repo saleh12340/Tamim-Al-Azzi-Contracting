@@ -141,7 +141,7 @@ public class MainActivity extends Activity {
         bar.addView(pt,new LinearLayout.LayoutParams(dp(105),dp(38))); root.addView(bar);
         ScrollView sv=new ScrollView(this); sv.setFillViewport(true); sv.setClipToPadding(false);
         content=new LinearLayout(this); content.setOrientation(LinearLayout.VERTICAL); content.setPadding(dp(5),dp(4),dp(5),dp(8)); content.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-        TextView operationChip=tv("العملية الحالية: "+title,10); operationChip.setTextColor(GREEN); operationChip.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL); operationChip.setSingleLine(false); operationChip.setMaxLines(2); operationChip.setEllipsize(null); operationChip.setPadding(dp(8),0,dp(8),0); operationChip.setBackground(outline(Color.rgb(241,247,242),8)); content.addView(operationChip,new LinearLayout.LayoutParams(-1,dp(24))); addSpace(2);
+        if(!"الرئيسية".equals(title)){ TextView operationChip=tv("العملية الحالية: "+title,10); operationChip.setTextColor(GREEN); operationChip.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL); operationChip.setSingleLine(true); operationChip.setMaxLines(1); operationChip.setEllipsize(TextUtils.TruncateAt.END); operationChip.setPadding(dp(8),0,dp(8),0); operationChip.setBackground(outline(Color.rgb(241,247,242),8)); content.addView(operationChip,new LinearLayout.LayoutParams(-1,dp(24))); addSpace(2); }
         sv.addView(content); root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));
         setContentView(root);
     }
@@ -198,14 +198,14 @@ public class MainActivity extends Activity {
         TextView hs=tv("المبيعات • حسابات العملاء • المخزون • التقارير\\nيعمل محلياً بدون إنترنت ويحفظ بياناتك على الجهاز",11);
         hs.setTextColor(Color.WHITE); hs.setGravity(Gravity.CENTER); hs.setMaxLines(2); fitInside(hs,11f,8f);
         hero.addView(hs,new LinearLayout.LayoutParams(-1,dp(34)));
-        addCard(hero,70);
+        addCard(hero,78);
 
         // زر الفاتورة الرئيسي مستقل وواضح، ولا يختفي خلف التبويبات أو البطاقات.
         LinearLayout quick=card(); quick.setPadding(dp(8),dp(5),dp(8),dp(5));
         TextView quickTitle=tv("إجراء سريع",10); quickTitle.setTextColor(MUTED); quickTitle.setGravity(Gravity.CENTER); quick.addView(quickTitle,new LinearLayout.LayoutParams(-1,dp(22)));
         Button ni=action("＋  إنشاء فاتورة جديدة",GOLD); ni.setTextSize(15); ni.setMinHeight(0); ni.setMaxLines(1); ni.setGravity(Gravity.CENTER); fitInside(ni,15f,10f); ni.setOnClickListener(v->invoice());
         quick.addView(ni,new LinearLayout.LayoutParams(-1,dp(42)));
-        addCard(quick,72);
+        addCard(quick,66);
 
         section("الأقسام الرئيسية");
 
@@ -221,9 +221,9 @@ public class MainActivity extends Activity {
                 TextView b=tv(subs[j],9); b.setTextColor(MUTED); b.setGravity(Gravity.CENTER); b.setMaxLines(2); fitInside(b,9f,7f);
                 c.addView(b,new LinearLayout.LayoutParams(-1,dp(30)));
                 c.setOnClickListener(actions[j]);
-                LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,dp(66),1); if(j==i) cp.setMargins(0,0,dp(4),0); else cp.setMargins(dp(4),0,0,0); row.addView(c,cp);
+                LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,dp(72),1); if(j==i) cp.setMargins(0,0,dp(4),0); else cp.setMargins(dp(4),0,0,0); row.addView(c,cp);
             }
-            content.addView(row,new LinearLayout.LayoutParams(-1,dp(66))); addSpace(5);
+            content.addView(row,new LinearLayout.LayoutParams(-1,dp(72))); addSpace(4);
         }
 
         Button backup=button("💾 النسخ الاحتياطي والاسترجاع");backup.setTextColor(GREEN);backup.setTextSize(12);backup.setOnClickListener(v->showBackupRestore());content.addView(backup,new LinearLayout.LayoutParams(-1,dp(38)));addSpace(5);
@@ -524,7 +524,7 @@ public class MainActivity extends Activity {
                 ContentValues v=new ContentValues();v.put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME,fn);v.put(android.provider.MediaStore.MediaColumns.MIME_TYPE,"image/png");v.put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH,"Download/بقالة العزيز خاص");
                 Uri u=getContentResolver().insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,v);if(u==null)throw new Exception();
                 try(OutputStream out=getContentResolver().openOutputStream(u)){b.compress(Bitmap.CompressFormat.PNG,100,out);}
-                Toast.makeText(this,"تم حفظ صورة الفاتورة في Download/بقالة العزيز خاص",Toast.LENGTH_SHORT).show(); return u;
+                return u;
             }else{
                 File f=new File(appDownloadDir(),fn);try(FileOutputStream out=new FileOutputStream(f)){b.compress(Bitmap.CompressFormat.PNG,100,out);}
                 return Uri.fromFile(f);
@@ -591,15 +591,33 @@ public class MainActivity extends Activity {
     Button btn(String text){Button b=button(text);b.setTextColor(TEXT);b.setBackground(outline(CARD,14));return b;}
     static class Line{String name;double qty,total;Line(String n,double q,double t){name=n;qty=q;total=t;}}
     void addRow(LinearLayout parent,Line l,double running,double baseBal,ArrayList<Line> all){
-        LinearLayout r=new LinearLayout(this);r.setOrientation(LinearLayout.HORIZONTAL);r.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);r.setGravity(Gravity.CENTER_VERTICAL);r.setPadding(dp(2),dp(3),dp(2),dp(3));
+        LinearLayout r=new LinearLayout(this);r.setOrientation(LinearLayout.HORIZONTAL);r.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);r.setGravity(Gravity.CENTER_VERTICAL);r.setPadding(dp(2),dp(2),dp(2),dp(2));
         float[] w={1.0f,.72f,1.35f,.9f,.55f};
         TextView total=tv(fmt(l.total),13);total.setGravity(Gravity.CENTER);total.setSingleLine(true);
         TextView qty=tv(fmt(l.qty),13);qty.setGravity(Gravity.CENTER);qty.setSingleLine(true);
-        TextView item=tv(l.name,12);item.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);item.setMaxLines(3);item.setEllipsize(null);
-        TextView unit=tv(fmt(l.total/l.qty),12);unit.setTextColor(MUTED);unit.setGravity(Gravity.CENTER);unit.setSingleLine(true);
-        Button del=button("حذف");del.setTextSize(10);del.setTextColor(Color.RED);del.setBackgroundColor(Color.TRANSPARENT); qty.setContentDescription("تعديل كمية الصنف"); qty.setBackground(outline(Color.rgb(248,250,248),6));
+        TextView item=tv(l.name,12);item.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);item.setMaxLines(2);item.setEllipsize(TextUtils.TruncateAt.END);
+        TextView unit=tv(l.qty==0?"0":fmt(l.total/l.qty),12);unit.setTextColor(MUTED);unit.setGravity(Gravity.CENTER);unit.setSingleLine(true);
+        Button del=button("حذف");del.setTextSize(10);del.setTextColor(Color.RED);del.setBackgroundColor(Color.TRANSPARENT);
+        total.setBackground(outline(Color.rgb(248,250,248),6));qty.setBackground(outline(Color.rgb(248,250,248),6));item.setBackground(outline(Color.rgb(248,250,248),6));
+        total.setContentDescription("تعديل إجمالي الصنف");qty.setContentDescription("تعديل كمية الصنف");item.setContentDescription("تعديل اسم الصنف أو التفاصيل");
         View[] cells={total,qty,item,unit,del};for(int i=0;i<cells.length;i++)r.addView(cells[i],new LinearLayout.LayoutParams(0,dp(36),w[i]));
-        qty.setOnClickListener(v->editLineQuantity(l,parent,all,baseBal)); del.setOnClickListener(v->{all.remove(l);redrawInvoiceRows(parent,all,baseBal);});parent.addView(r,new LinearLayout.LayoutParams(-1,dp(36)));
+        total.setOnClickListener(v->editLineTotal(l,parent,all,baseBal));
+        qty.setOnClickListener(v->editLineQuantity(l,parent,all,baseBal));
+        item.setOnClickListener(v->editLineName(l,parent,all,baseBal));
+        del.setOnClickListener(v->{all.remove(l);redrawInvoiceRows(parent,all,baseBal);});
+        parent.addView(r,new LinearLayout.LayoutParams(-1,dp(36)));
+    }
+    void editLineTotal(Line line,LinearLayout parent,ArrayList<Line> all,double baseBal){
+        EditText e=numberField("الإجمالي");e.setText(fmt(line.total));e.setSelectAllOnFocus(true);
+        LinearLayout box=new LinearLayout(this);box.setPadding(dp(8),dp(4),dp(8),dp(2));box.addView(e,new LinearLayout.LayoutParams(-1,dp(42)));
+        new AlertDialog.Builder(this).setTitle("تعديل إجمالي الصنف").setMessage(line.name+" — الإجمالي الحالي: "+fmt(line.total)+" ريال").setView(box)
+            .setNegativeButton("إلغاء",null).setPositiveButton("حفظ",(d,w)->{try{double value=Double.parseDouble(e.getText().toString().trim());if(value<0)throw new Exception();line.total=value;redrawInvoiceRows(parent,all,baseBal);}catch(Exception ex){Toast.makeText(this,"أدخل إجماليًا صحيحًا",Toast.LENGTH_SHORT).show();}}).show();
+    }
+    void editLineName(Line line,LinearLayout parent,ArrayList<Line> all,double baseBal){
+        EditText e=field("اسم الصنف / التفاصيل");e.setText(line.name);e.setSelectAllOnFocus(true);
+        LinearLayout box=new LinearLayout(this);box.setPadding(dp(8),dp(4),dp(8),dp(2));box.addView(e,new LinearLayout.LayoutParams(-1,dp(42)));
+        new AlertDialog.Builder(this).setTitle("تعديل اسم الصنف / التفاصيل").setView(box)
+            .setNegativeButton("إلغاء",null).setPositiveButton("حفظ",(d,w)->{String value=e.getText().toString().trim();if(value.isEmpty()){Toast.makeText(this,"اسم الصنف لا يمكن أن يكون فارغًا",Toast.LENGTH_SHORT).show();return;}line.name=value;redrawInvoiceRows(parent,all,baseBal);}).show();
     }
     void editLineQuantity(Line line,LinearLayout parent,ArrayList<Line> all,double baseBal){
         EditText q=numberField("الكمية");q.setText(fmt(line.qty));q.setSelectAllOnFocus(true);
@@ -664,17 +682,38 @@ public class MainActivity extends Activity {
     void showPostSaveActions(String no,String customer,ArrayList<Line> lines,double total,long cid,double paid){
         String status=paid>=total?"مسددة":(paid>0?"متبقي "+fmt(total-paid)+" ريال":"غير مسددة");
         int statusColor=paid>=total?BLUE:RED;
-        final Dialog dialog=new Dialog(this);LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(16),dp(12),dp(16),dp(10));box.setBackground(rounded(CARD,dp(18)));
-        TextView title=tv("تم حفظ الفاتورة",17);title.setTextColor(GREEN);title.setTypeface(Typeface.DEFAULT,Typeface.BOLD);title.setGravity(Gravity.CENTER);box.addView(title,new LinearLayout.LayoutParams(-1,dp(34)));
-        TextView sub=tv("الفاتورة: "+no+"\nالإجمالي: "+fmt(total)+" ريال\nالمدفوع: "+fmt(paid)+" ريال",12);sub.setTextColor(TEXT);sub.setGravity(Gravity.CENTER);box.addView(sub,new LinearLayout.LayoutParams(-1,dp(62)));
-        TextView statusV=tv(status,14);statusV.setTextColor(statusColor);statusV.setTypeface(Typeface.DEFAULT,Typeface.BOLD);statusV.setGravity(Gravity.CENTER);box.addView(statusV,new LinearLayout.LayoutParams(-1,dp(28)));
-        double currentBalance=db.balance(cid);TextView bal=tv("الرصيد بعد الفاتورة: "+balanceText(currentBalance),12);bal.setTextColor(balanceColor(currentBalance));bal.setGravity(Gravity.CENTER);box.addView(bal,new LinearLayout.LayoutParams(-1,dp(30)));
-        LinearLayout actions=new LinearLayout(this);actions.setOrientation(LinearLayout.HORIZONTAL);
-        Button share=button("📤 مشاركة");share.setTextColor(Color.WHITE);share.setBackgroundColor(GREEN);Button hide=button("إخفاء");hide.setTextColor(MUTED);
-        actions.addView(share,new LinearLayout.LayoutParams(0,dp(40),1));actions.addView(hide,new LinearLayout.LayoutParams(0,dp(40),1));box.addView(actions);
-        share.setOnClickListener(v->{dialog.dismiss();shareReceiptImageAndText(no,customer,lines,total);});hide.setOnClickListener(v->{dialog.dismiss();invoiceHistory();});
-        dialog.setContentView(box);dialog.setCanceledOnTouchOutside(false);dialog.show();
-        if(dialog.getWindow()!=null){dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);dialog.getWindow().setLayout(dp(330),WindowManager.LayoutParams.WRAP_CONTENT);dialog.getWindow().setGravity(Gravity.CENTER);}
+        final Dialog dialog=new Dialog(this);
+        LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(16),dp(12),dp(16),dp(10));box.setBackground(rounded(CARD,dp(18)));
+        TextView title=tv("تم حفظ الفاتورة بنجاح",17);title.setTextColor(GREEN);title.setTypeface(Typeface.DEFAULT,Typeface.BOLD);title.setGravity(Gravity.CENTER);
+        box.addView(title,new LinearLayout.LayoutParams(-1,dp(36)));
+        TextView sub=tv("الفاتورة: "+no+"\nالإجمالي: "+fmt(total)+" ريال\nالمدفوع: "+fmt(paid)+" ريال",12);sub.setTextColor(TEXT);sub.setGravity(Gravity.CENTER);
+        box.addView(sub,new LinearLayout.LayoutParams(-1,dp(62)));
+        TextView statusV=tv(status,14);statusV.setTextColor(statusColor);statusV.setTypeface(Typeface.DEFAULT,Typeface.BOLD);statusV.setGravity(Gravity.CENTER);
+        box.addView(statusV,new LinearLayout.LayoutParams(-1,dp(28)));
+        double currentBalance=db.balance(cid);TextView bal=tv("الرصيد بعد الفاتورة: "+balanceText(currentBalance),12);bal.setTextColor(balanceColor(currentBalance));bal.setGravity(Gravity.CENTER);
+        box.addView(bal,new LinearLayout.LayoutParams(-1,dp(30)));
+
+        LinearLayout actions1=new LinearLayout(this);actions1.setOrientation(LinearLayout.HORIZONTAL);actions1.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        Button share=button("📤 مشاركة");share.setTextColor(Color.WHITE);share.setBackgroundColor(GREEN);
+        Button newInvoice=button("＋ فاتورة جديدة");newInvoice.setTextColor(GREEN);newInvoice.setBackground(outline(Color.rgb(241,247,242),10));
+        actions1.addView(share,new LinearLayout.LayoutParams(0,dp(42),1));
+        actions1.addView(newInvoice,new LinearLayout.LayoutParams(0,dp(42),1));
+        box.addView(actions1);
+
+        Button close=button("✓ إقفال الفاتورة والعودة للسجل");close.setTextColor(MUTED);close.setBackground(outline(CARD,10));
+        box.addView(close,new LinearLayout.LayoutParams(-1,dp(40)));
+
+        share.setOnClickListener(v->{
+            dialog.dismiss();
+            // الانتقال للسجل أولاً يمنع الرجوع إلى شاشة الفاتورة المحفوظة بعد العودة من واتساب.
+            invoiceHistory();
+            shareReceiptImageAndText(no,customer,lines,total);
+        });
+        newInvoice.setOnClickListener(v->{dialog.dismiss();invoice();});
+        close.setOnClickListener(v->{dialog.dismiss();invoiceHistory();});
+
+        dialog.setContentView(box);dialog.setCanceledOnTouchOutside(false);dialog.setCancelable(false);dialog.show();
+        if(dialog.getWindow()!=null){dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);dialog.getWindow().setLayout(dp(340),WindowManager.LayoutParams.WRAP_CONTENT);dialog.getWindow().setGravity(Gravity.CENTER);}
     }
 
     void showInvoiceDialog(long id,String no,String customer,double total,String date){
