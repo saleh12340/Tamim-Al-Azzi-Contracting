@@ -188,47 +188,108 @@ public class MainActivity extends Activity {
     }
 
     void home(){
-        base("الرئيسية");
+        currentPage="الرئيسية";
+        pageStack.clear();
 
-        LinearLayout hero=card(); hero.setPadding(dp(14),dp(10),dp(14),dp(10));
-        hero.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{GREEN,DARK}));
-        TextView h=tv("بقالة العزي",22);h.setTextColor(Color.WHITE);h.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
-        h.setGravity(Gravity.CENTER); h.setMaxLines(1); fitInside(h,22f,16f);
-        hero.addView(h,new LinearLayout.LayoutParams(-1,dp(30)));
-        TextView hs=tv("المبيعات • حسابات العملاء • المخزون • التقارير\\nيعمل محلياً بدون إنترنت ويحفظ بياناتك على الجهاز",11);
-        hs.setTextColor(Color.WHITE); hs.setGravity(Gravity.CENTER); hs.setMaxLines(2); fitInside(hs,11f,8f);
-        hero.addView(hs,new LinearLayout.LayoutParams(-1,dp(34)));
-        addCard(hero,78);
+        root=new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(BG);
+        root.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
 
-        // زر الفاتورة الرئيسي مستقل وواضح، ولا يختفي خلف التبويبات أو البطاقات.
-        LinearLayout quick=card(); quick.setPadding(dp(8),dp(5),dp(8),dp(5));
-        TextView quickTitle=tv("إجراء سريع",10); quickTitle.setTextColor(MUTED); quickTitle.setGravity(Gravity.CENTER); quick.addView(quickTitle,new LinearLayout.LayoutParams(-1,dp(22)));
-        Button ni=action("＋  إنشاء فاتورة جديدة",GOLD); ni.setTextSize(15); ni.setMinHeight(0); ni.setMaxLines(1); ni.setGravity(Gravity.CENTER); fitInside(ni,15f,10f); ni.setOnClickListener(v->invoice());
-        quick.addView(ni,new LinearLayout.LayoutParams(-1,dp(42)));
-        addCard(quick,66);
+        // الرأس: ثابت ولا يتحرك مع محتوى التطبيق.
+        LinearLayout header=new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setPadding(dp(10),dp(5),dp(10),dp(5));
+        header.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{GREEN,DARK}));
 
-        section("الأقسام الرئيسية");
+        LinearLayout titleBox=new LinearLayout(this);
+        titleBox.setOrientation(LinearLayout.VERTICAL);
+        titleBox.setGravity(Gravity.CENTER);
+        TextView title=tv("بقالة العزي للمواد الغذائية",19);
+        title.setTextColor(Color.WHITE); title.setTypeface(Typeface.DEFAULT,Typeface.BOLD); title.setGravity(Gravity.CENTER);
+        TextView phone=tv("776425052  •  نظام الفواتير والحسابات",10);
+        phone.setTextColor(Color.WHITE); phone.setGravity(Gravity.CENTER);
+        titleBox.addView(title,new LinearLayout.LayoutParams(-1,dp(28)));
+        titleBox.addView(phone,new LinearLayout.LayoutParams(-1,dp(22)));
+        header.addView(titleBox,new LinearLayout.LayoutParams(0,dp(54),1));
+        root.addView(header,new LinearLayout.LayoutParams(-1,dp(64)));
 
-        String[] names={"👥 العملاء والحسابات","🧾 الفواتير","🛒 فواتير الشراء","📊 التقارير"};
-        String[] subs={"العملاء، الأرصدة والحركات","سجل فواتير البيع والتعديل والحذف","المشتريات والموردون وتحديث المخزون","ملخص المبيعات والحركة"};
-        View.OnClickListener[] actions={v->customers(),v->invoiceHistory(),v->purchaseInvoices(),v->reports()};
-        for(int i=0;i<names.length;i+=2){
-            LinearLayout row=new LinearLayout(this); row.setOrientation(LinearLayout.HORIZONTAL); row.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-            for(int j=i;j<i+2&&j<names.length;j++){
-                LinearLayout c=card(); c.setPadding(dp(7),dp(6),dp(7),dp(5));
-                TextView a=tv(names[j],13); a.setTextColor(GREEN); a.setTypeface(Typeface.DEFAULT,Typeface.BOLD); a.setGravity(Gravity.CENTER); a.setMaxLines(1); fitInside(a,13f,9f);
-                c.addView(a,new LinearLayout.LayoutParams(-1,dp(28)));
-                TextView b=tv(subs[j],9); b.setTextColor(MUTED); b.setGravity(Gravity.CENTER); b.setMaxLines(2); fitInside(b,9f,7f);
-                c.addView(b,new LinearLayout.LayoutParams(-1,dp(30)));
-                c.setOnClickListener(actions[j]);
-                LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,dp(72),1); if(j==i) cp.setMargins(0,0,dp(4),0); else cp.setMargins(dp(4),0,0,0); row.addView(c,cp);
-            }
-            content.addView(row,new LinearLayout.LayoutParams(-1,dp(72))); addSpace(4);
+        // الوسط: تبويبات التطبيق + شاشة القسم.
+        ScrollView middleScroll=new ScrollView(this);
+        middleScroll.setFillViewport(true);
+        middleScroll.setClipToPadding(false);
+        LinearLayout middle=new LinearLayout(this);
+        middle.setOrientation(LinearLayout.VERTICAL);
+        middle.setPadding(dp(6),dp(7),dp(6),dp(8));
+        middle.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+
+        TextView tabTitle=tv("تبويبات التطبيق",11);
+        tabTitle.setTextColor(GREEN); tabTitle.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        tabTitle.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
+        middle.addView(tabTitle,new LinearLayout.LayoutParams(-1,dp(25)));
+
+        LinearLayout tabs1=new LinearLayout(this);
+        tabs1.setOrientation(LinearLayout.HORIZONTAL); tabs1.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        String[] t1={"👥 العملاء والحسابات","🧾 فواتير البيع"};
+        View.OnClickListener[] a1={v->customers(),v->invoiceHistory()};
+        for(int i=0;i<2;i++){
+            Button b=action(t1[i],GREEN); b.setTextSize(11); b.setMaxLines(1); fitInside(b,12f,9f);
+            b.setOnClickListener(a1[i]);
+            LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(44),1); p.setMargins(i==0?0:dp(3),0,i==0?dp(3):0,0);
+            tabs1.addView(b,p);
         }
+        middle.addView(tabs1,new LinearLayout.LayoutParams(-1,dp(46))); addSpaceTo(middle,4);
 
-        Button backup=button("💾 النسخ الاحتياطي والاسترجاع");backup.setTextColor(GREEN);backup.setTextSize(12);backup.setOnClickListener(v->showBackupRestore());content.addView(backup,new LinearLayout.LayoutParams(-1,dp(38)));addSpace(5);
-        Button general=button("＋  إضافة عملية"); general.setTextColor(GREEN); general.setTextSize(12); general.setMaxLines(1); general.setGravity(Gravity.CENTER); general.setBackground(outline(CARD,12)); fitInside(general,12f,9f);
-        general.setOnClickListener(v->showGeneralActions()); content.addView(general,new LinearLayout.LayoutParams(-1,dp(36))); addSpace(5);
+        LinearLayout tabs2=new LinearLayout(this);
+        tabs2.setOrientation(LinearLayout.HORIZONTAL); tabs2.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        String[] t2={"🛒 فواتير الشراء","📊 التقارير"};
+        View.OnClickListener[] a2={v->purchaseInvoices(),v->reports()};
+        for(int i=0;i<2;i++){
+            Button b=action(t2[i],i==0?GOLD:BLUE); b.setTextSize(11); b.setMaxLines(1); fitInside(b,12f,9f);
+            b.setOnClickListener(a2[i]);
+            LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(44),1); p.setMargins(i==0?0:dp(3),0,i==0?dp(3):0,0);
+            tabs2.addView(b,p);
+        }
+        middle.addView(tabs2,new LinearLayout.LayoutParams(-1,dp(46))); addSpaceTo(middle,7);
+
+        LinearLayout screen=card();
+        screen.setPadding(dp(9),dp(7),dp(9),dp(7));
+        TextView st=tv("شاشة التطبيق",13); st.setTextColor(GREEN); st.setTypeface(Typeface.DEFAULT,Typeface.BOLD); st.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
+        screen.addView(st,new LinearLayout.LayoutParams(-1,dp(28)));
+        TextView desc=tv("اختر أحد التبويبات أعلاه للوصول إلى العملاء، فواتير البيع، فواتير الشراء والتقارير. جميع البيانات محفوظة محلياً على الجهاز.",11);
+        desc.setTextColor(MUTED); desc.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL); desc.setMaxLines(3); fitInside(desc,11f,8f);
+        screen.addView(desc,new LinearLayout.LayoutParams(-1,dp(52)));
+        middle.addView(screen,new LinearLayout.LayoutParams(-1,dp(92))); addSpaceTo(middle,6);
+
+        LinearLayout stats=card(); stats.setPadding(dp(7),dp(4),dp(7),dp(4));
+        TextView sv=tv("الفواتير "+db.invoiceCount()+"  •  المبيعات "+fmt(db.sales())+" ريال  •  العملاء "+db.customerCount(),11);
+        sv.setGravity(Gravity.CENTER); sv.setTextColor(TEXT);
+        stats.addView(sv,new LinearLayout.LayoutParams(-1,dp(34)));
+        middle.addView(stats,new LinearLayout.LayoutParams(-1,dp(44)));
+
+        middleScroll.addView(middle);
+        root.addView(middleScroll,new LinearLayout.LayoutParams(-1,0,1));
+
+        // الأسفل: النسخ الاحتياطي والزر السريع ثابتان خارج منطقة التمرير.
+        LinearLayout footer=new LinearLayout(this);
+        footer.setOrientation(LinearLayout.HORIZONTAL);
+        footer.setGravity(Gravity.CENTER_VERTICAL);
+        footer.setPadding(dp(6),dp(4),dp(6),dp(4));
+        footer.setBackground(outlined(CARD,1,0));
+
+        Button backup=button("💾 النسخ الاحتياطي");
+        backup.setTextColor(GREEN); backup.setTextSize(10); backup.setMaxLines(2); fitInside(backup,11f,8f);
+        backup.setOnClickListener(v->showBackupRestore());
+        footer.addView(backup,new LinearLayout.LayoutParams(0,dp(48),1));
+
+        Button quick=action("⚡ إجراء سريع",GOLD);
+        quick.setTextSize(12); quick.setMaxLines(1); fitInside(quick,13f,9f);
+        quick.setOnClickListener(v->showGeneralActions());
+        footer.addView(quick,new LinearLayout.LayoutParams(0,dp(48),1.35f));
+        root.addView(footer,new LinearLayout.LayoutParams(-1,dp(56)));
+
+        setContentView(root);
     }
 
     void showGeneralActions(){
@@ -1327,24 +1388,122 @@ public class MainActivity extends Activity {
         refresh[0].run();
     }
     void purchaseInvoices(){
-        base("فواتير الشراء"); section("فاتورة شراء جديدة");
-        LinearLayout meta=new LinearLayout(this);meta.setOrientation(LinearLayout.HORIZONTAL);meta.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-        TextView no=tv(String.valueOf(db.nextPurchaseNo()),15);no.setTextColor(GREEN);no.setTypeface(Typeface.DEFAULT,Typeface.BOLD);no.setGravity(Gravity.CENTER);no.setBackground(outline(Color.rgb(248,250,248),12));
-        AutoCompleteTextView supplier=new AutoCompleteTextView(this);supplier.setHint("اسم المورد");supplier.setTextSize(14);supplier.setSingleLine(true);supplier.setTextColor(TEXT);supplier.setHintTextColor(MUTED);supplier.setPadding(dp(9),dp(5),dp(9),dp(5));supplier.setBackground(outline(CARD,12));supplier.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);supplier.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);supplier.setTextDirection(View.TEXT_DIRECTION_RTL);supplier.setThreshold(1);supplier.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_dropdown_item_1line,db.supplierNames()));
-        meta.addView(no,new LinearLayout.LayoutParams(0,dp(44),.7f));meta.addView(supplier,new LinearLayout.LayoutParams(0,dp(44),1.3f));content.addView(meta);addSpace(5);
+        base("فواتير الشراء");
+        section("فاتورة شراء جديدة");
+
+        LinearLayout meta=new LinearLayout(this);
+        meta.setOrientation(LinearLayout.HORIZONTAL); meta.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+
+        TextView no=tv(String.valueOf(db.nextPurchaseNo()),15);
+        no.setTextColor(GREEN); no.setTypeface(Typeface.DEFAULT,Typeface.BOLD); no.setGravity(Gravity.CENTER);
+        no.setBackground(outline(Color.rgb(248,250,248),12));
+        meta.addView(no,new LinearLayout.LayoutParams(0,dp(44),.7f));
+
+        AutoCompleteTextView supplier=new AutoCompleteTextView(this);
+        supplier.setHint("اسم المورد"); supplier.setTextSize(14); supplier.setSingleLine(true);
+        supplier.setTextColor(TEXT); supplier.setHintTextColor(MUTED);
+        supplier.setPadding(dp(9),dp(5),dp(9),dp(5)); supplier.setBackground(outline(CARD,12));
+        supplier.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
+        supplier.setLayoutDirection(View.LAYOUT_DIRECTION_RTL); supplier.setTextDirection(View.TEXT_DIRECTION_RTL);
+        supplier.setThreshold(1); supplier.setSelectAllOnFocus(true);
+        supplier.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_dropdown_item_1line,db.supplierNames()));
+        meta.addView(supplier,new LinearLayout.LayoutParams(0,dp(44),1.3f));
+        content.addView(meta); addSpace(5);
+
         section("إضافة صنف للشراء");
-        AutoCompleteTextView item=new AutoCompleteTextView(this);item.setHint("اسم الصنف");item.setTextSize(13);item.setSingleLine(true);item.setTextColor(TEXT);item.setHintTextColor(MUTED);item.setPadding(dp(8),dp(4),dp(8),dp(4));item.setBackground(outline(CARD,1f));item.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);item.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);item.setTextDirection(View.TEXT_DIRECTION_RTL);item.setThreshold(1);item.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_dropdown_item_1line,db.itemNames()));
-        EditText qty=numberField("الكمية"),cost=numberField("سعر التكلفة"),sale=numberField("سعر البيع");
-        LinearLayout inputs=new LinearLayout(this);inputs.setOrientation(LinearLayout.HORIZONTAL);inputs.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-        inputs.addView(item,new LinearLayout.LayoutParams(0,dp(38),1.45f));inputs.addView(qty,new LinearLayout.LayoutParams(0,dp(38),.65f));inputs.addView(cost,new LinearLayout.LayoutParams(0,dp(38),.9f));inputs.addView(sale,new LinearLayout.LayoutParams(0,dp(38),.9f));content.addView(inputs);addSpace(4);
-        ArrayList<PurchaseLine> lines=new ArrayList<>();LinearLayout list=card();content.addView(list,new LinearLayout.LayoutParams(-1,dp(190)));
-        TextView totalLabel=tv("إجمالي الشراء: 0 ريال",18);totalLabel.setTextColor(GREEN);totalLabel.setTypeface(Typeface.DEFAULT,Typeface.BOLD);totalLabel.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);totalLabel.setBackground(bg(Color.rgb(255,249,226),10));content.addView(totalLabel,new LinearLayout.LayoutParams(-1,dp(44)));addSpace(4);
-        Button add=action("＋ إضافة الصنف إلى الفاتورة",GREEN);content.addView(add,new LinearLayout.LayoutParams(-1,dp(40)));addSpace(4);
-        Button save=action("💾 حفظ فاتورة الشراء",GOLD);content.addView(save,new LinearLayout.LayoutParams(-1,dp(42)));
+        AutoCompleteTextView item=new AutoCompleteTextView(this);
+        item.setHint("اسم الصنف"); item.setTextSize(13); item.setSingleLine(true);
+        item.setTextColor(TEXT); item.setHintTextColor(MUTED); item.setPadding(dp(8),dp(4),dp(8),dp(4));
+        item.setBackground(outline(CARD,1)); item.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
+        item.setLayoutDirection(View.LAYOUT_DIRECTION_RTL); item.setTextDirection(View.TEXT_DIRECTION_RTL);
+        item.setThreshold(1); item.setSelectAllOnFocus(true);
+        item.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_dropdown_item_1line,db.itemNames()));
+
+        EditText qty=numberField("الكمية"), cost=numberField("سعر التكلفة"), sale=numberField("سعر البيع");
+        qty.setText("1");
+        LinearLayout inputs=new LinearLayout(this);
+        inputs.setOrientation(LinearLayout.HORIZONTAL); inputs.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        inputs.addView(item,new LinearLayout.LayoutParams(0,dp(40),1.35f));
+        inputs.addView(qty,new LinearLayout.LayoutParams(0,dp(40),.65f));
+        inputs.addView(cost,new LinearLayout.LayoutParams(0,dp(40),.9f));
+        inputs.addView(sale,new LinearLayout.LayoutParams(0,dp(40),.9f));
+        content.addView(inputs); addSpace(5);
+
+        TextView labels=tv("الصنف     |     الكمية     |     التكلفة     |     البيع",9);
+        labels.setTextColor(MUTED); labels.setGravity(Gravity.CENTER); content.addView(labels,new LinearLayout.LayoutParams(-1,dp(22)));
+
+        ArrayList<PurchaseLine> lines=new ArrayList<>();
+        LinearLayout list=card(); list.setPadding(dp(5),dp(4),dp(5),dp(4));
+        content.addView(list,new LinearLayout.LayoutParams(-1,dp(205)));
+        TextView totalLabel=tv("إجمالي الشراء: 0 ريال",17);
+        totalLabel.setTextColor(GREEN); totalLabel.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        totalLabel.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL); totalLabel.setBackground(bg(Color.rgb(255,249,226),10));
+        content.addView(totalLabel,new LinearLayout.LayoutParams(-1,dp(44))); addSpace(5);
+
+        Button add=action("＋ إضافة الصنف إلى الفاتورة",GREEN);
+        content.addView(add,new LinearLayout.LayoutParams(-1,dp(40))); addSpace(4);
+        Button save=action("💾 حفظ فاتورة الشراء وتحديث المخزون",GOLD);
+        content.addView(save,new LinearLayout.LayoutParams(-1,dp(44)));
+
         final Runnable[] refreshHolder=new Runnable[1];
-        Runnable refresh=()->{list.removeAllViews();double sum=0;for(PurchaseLine pl:lines){sum+=pl.total;LinearLayout row=new LinearLayout(this);row.setOrientation(LinearLayout.HORIZONTAL);row.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);row.setGravity(Gravity.CENTER_VERTICAL);TextView n=tv(pl.name+"\\nكمية "+fmt(pl.qty)+" • تكلفة "+fmt(pl.cost)+" • بيع "+fmt(pl.sale),11);n.setMaxLines(2);n.setEllipsize(TextUtils.TruncateAt.END);Button del=button("حذف");del.setTextColor(RED);del.setOnClickListener(v->{lines.remove(pl);refreshHolder[0].run();});row.addView(n,new LinearLayout.LayoutParams(0,dp(46),1));row.addView(del,new LinearLayout.LayoutParams(dp(55),dp(38)));list.addView(row,new LinearLayout.LayoutParams(-1,dp(48)));addSpaceTo(list,3);}totalLabel.setText("إجمالي الشراء: "+fmt(sum)+" ريال");}; refreshHolder[0]=refresh;
-        add.setOnClickListener(v->{try{String n=item.getText().toString().trim();double q=Double.parseDouble(qty.getText().toString().trim());double co=Double.parseDouble(cost.getText().toString().trim());double sa=Double.parseDouble(sale.getText().toString().trim());if(n.isEmpty()||q<=0||co<0||sa<0)throw new Exception();lines.add(new PurchaseLine(n,q,co,sa,q*co));refresh.run();item.setText("");qty.setText("1");cost.setText("");sale.setText("");item.requestFocus();}catch(Exception e){Toast.makeText(this,"أدخل بيانات الصنف بشكل صحيح",Toast.LENGTH_SHORT).show();}});
-        save.setOnClickListener(v->{try{if(lines.isEmpty()){Toast.makeText(this,"أضف صنفاً واحداً على الأقل",Toast.LENGTH_SHORT).show();return;}String sn=supplier.getText().toString().trim();if(sn.isEmpty())sn="مورد نقدي";double sum=0;for(PurchaseLine pl:lines)sum+=pl.total;db.supplier(sn,"");long pid=db.addPurchase(String.valueOf(no.getText()),sn,sum,db.now());db.replacePurchaseLines(pid,lines);db.updateStockFromPurchase(lines);Toast.makeText(this,"تم حفظ فاتورة الشراء وتحديث المخزون",Toast.LENGTH_LONG).show();purchaseInvoices();}catch(Exception e){Toast.makeText(this,"تعذر حفظ فاتورة الشراء",Toast.LENGTH_LONG).show();}});
+        Runnable refresh=()->{
+            list.removeAllViews();
+            double sum=0;
+            for(PurchaseLine pl:lines){
+                sum+=pl.total;
+                LinearLayout row=new LinearLayout(this);
+                row.setOrientation(LinearLayout.HORIZONTAL); row.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+                row.setGravity(Gravity.CENTER_VERTICAL);
+                TextView n=tv(pl.name+"\nكمية "+fmt(pl.qty)+" • تكلفة "+fmt(pl.cost)+" • بيع "+fmt(pl.sale),10);
+                n.setMaxLines(2); n.setEllipsize(TextUtils.TruncateAt.END);
+                Button del=button("حذف"); del.setTextColor(RED);
+                del.setOnClickListener(v->{lines.remove(pl);refreshHolder[0].run();});
+                row.addView(n,new LinearLayout.LayoutParams(0,dp(48),1));
+                row.addView(del,new LinearLayout.LayoutParams(dp(58),dp(38)));
+                list.addView(row,new LinearLayout.LayoutParams(-1,dp(50)));
+            }
+            totalLabel.setText("إجمالي الشراء: "+fmt(sum)+" ريال");
+        };
+        refreshHolder[0]=refresh;
+
+        add.setOnClickListener(v->{
+            try{
+                String n=item.getText().toString().trim();
+                double q=Double.parseDouble(qty.getText().toString().trim());
+                double co=Double.parseDouble(cost.getText().toString().trim());
+                double sa=Double.parseDouble(sale.getText().toString().trim());
+                if(n.isEmpty()||q<=0||co<0||sa<0) throw new Exception();
+                // لا نسمح بتكرار نفس الصنف داخل الفاتورة؛ يتم تجميع الكمية.
+                PurchaseLine existing=null;
+                for(PurchaseLine x:lines) if(x.name.equalsIgnoreCase(n)){existing=x;break;}
+                if(existing!=null){
+                    existing.qty+=q; existing.cost=co; existing.sale=sa; existing.total=existing.qty*co;
+                }else lines.add(new PurchaseLine(n,q,co,sa,q*co));
+                refresh.run();
+                item.setText(""); qty.setText("1"); cost.setText(""); sale.setText(""); item.requestFocus();
+            }catch(Exception e){Toast.makeText(this,"أدخل اسم الصنف والكمية والتكلفة وسعر البيع بشكل صحيح",Toast.LENGTH_SHORT).show();}
+        });
+
+        save.setOnClickListener(v->{
+            if(lines.isEmpty()){Toast.makeText(this,"أضف صنفاً واحداً على الأقل",Toast.LENGTH_SHORT).show();return;}
+            String sn=supplier.getText().toString().trim();
+            if(sn.isEmpty()) sn="مورد نقدي";
+            double sum=0; for(PurchaseLine pl:lines) sum+=pl.total;
+            SQLiteDatabase d=null;
+            try{
+                d=db.getWritableDatabase(); d.beginTransaction();
+                db.supplier(sn,"");
+                long pid=db.addPurchase(String.valueOf(no.getText()),sn,sum,db.now());
+                if(pid<=0) throw new Exception("purchase insert failed");
+                db.replacePurchaseLines(pid,lines);
+                db.updateStockFromPurchase(lines);
+                d.setTransactionSuccessful();
+                Toast.makeText(this,"تم حفظ فاتورة الشراء وتحديث المخزون بنجاح",Toast.LENGTH_LONG).show();
+                purchaseInvoices();
+            }catch(Exception e){
+                Toast.makeText(this,"تعذر حفظ فاتورة الشراء: "+(e.getMessage()==null?"خطأ في قاعدة البيانات":e.getMessage()),Toast.LENGTH_LONG).show();
+            }finally{if(d!=null){try{d.endTransaction();}catch(Exception ignored){}}}
+        });
         refresh.run();
     }
     static class PurchaseLine{String name;double qty,cost,sale,total;PurchaseLine(String n,double q,double c,double s,double t){name=n;qty=q;cost=c;sale=s;total=t;}}
