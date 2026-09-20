@@ -181,7 +181,7 @@ public class MainActivity extends Activity {
         EditText search=field("بحث بالاسم أو الهاتف");addField(search);
         LinearLayout addBox=new LinearLayout(this); addBox.setOrientation(LinearLayout.VERTICAL); addBox.setPadding(14,12,14,12); addBox.setBackground(outlined(CARD,1,16));
         TextView addTitle=tv("بيانات العميل",17); addTitle.setTextColor(GREEN); addTitle.setTypeface(Typeface.DEFAULT,Typeface.BOLD); addBox.addView(addTitle,new LinearLayout.LayoutParams(-1,40));
-        EditText name=field("اسم العميل"); EditText phone=field("رقم الهاتف"); customerNameInput=name; customerPhoneInput=phone; addBox.addView(name,new LinearLayout.LayoutParams(-1,56)); addSpaceInside(addBox,7); addBox.addView(phone,new LinearLayout.LayoutParams(-1,56)); addSpaceInside(addBox,8);
+        EditText name=field("اسم العميل"); EditText phone=field("رقم الهاتف"); customerNameInput=name; customerPhoneInput=phone; addBox.addView(name,new LinearLayout.LayoutParams(-1,56)); addBox.addView(new Space(this),new LinearLayout.LayoutParams(1,7)); addBox.addView(phone,new LinearLayout.LayoutParams(-1,56)); addBox.addView(new Space(this),new LinearLayout.LayoutParams(1,8));
         LinearLayout contactActions=new LinearLayout(this); contactActions.setOrientation(LinearLayout.HORIZONTAL);
         Button pick=button("👤 استيراد من جهات الاتصال"); pick.setTextColor(GREEN); pick.setOnClickListener(v->importContact());
         Button add=button("＋ إضافة العميل"); add.setTextColor(Color.WHITE); add.setBackgroundColor(GREEN);
