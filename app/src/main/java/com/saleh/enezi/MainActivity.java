@@ -774,11 +774,28 @@ public class MainActivity extends Activity {
     void sendBitmapToBluetooth(BluetoothDevice device,Bitmap bitmap){
         BluetoothSocket socket=null;OutputStream out=null;
         try{
-            socket=device.createRfcommSocketToServiceRecord(UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"));socket.connect();
-            out=socket.getOutputStream();out.write(new byte[]{0x1B,0x40});out.write(rasterBytes(bitmap));out.write(new byte[]{0x0A,0x0A,0x0A});out.flush();
-            runOnUiThread(()->Toast.makeText(this,"تم إرسال العملية إلى الطابعة",Toast.LENGTH_SHORT).show());
-        }catch(Exception e){runOnUiThread(()->Toast.makeText(this,"تعذر الاتصال بالطابعة: "+(e.getMessage()==null?"تحقق من الاقتران":e.getMessage()),Toast.LENGTH_LONG).show());}
-        finally{try{if(out!=null)out.close();}catch(Exception ignored){}try{if(socket!=null)socket.close();}catch(Exception ignored){}}
+            UUID spp=UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
+            try{
+                socket=device.createRfcommSocketToServiceRecord(spp);
+                socket.connect();
+            }catch(Exception first){
+                try{if(socket!=null)socket.close();}catch(Exception ignored){}
+                socket=device.createInsecureRfcommSocketToServiceRecord(spp);
+                socket.connect();
+            }
+            out=socket.getOutputStream();
+            out.write(new byte[]{0x1B,0x40});                 // تهيئة الطابعة
+            out.write(rasterBytes(bitmap));                  // 384px = 58mm على أغلب طابعات 203dpi
+            out.write(new byte[]{0x1B,0x64,0x04});            // تغذية الورق
+            out.write(new byte[]{0x1D,0x56,0x00});            // قص إن كانت الطابعة تدعم القص
+            out.flush();
+            runOnUiThread(()->Toast.makeText(this,"تم إرسال العملية إلى الطابعة 58mm",Toast.LENGTH_SHORT).show());
+        }catch(Exception e){
+            runOnUiThread(()->Toast.makeText(this,"تعذر الطباعة. تأكد من اقتران طابعة 58mm وأنها جاهزة للورق.",Toast.LENGTH_LONG).show());
+        }finally{
+            try{if(out!=null)out.close();}catch(Exception ignored){}
+            try{if(socket!=null)socket.close();}catch(Exception ignored){}
+        }
     }
     void printInvoiceBluetooth(String no,String customer,ArrayList<Line> lines,double total){
         if(Build.VERSION.SDK_INT>=31&&checkSelfPermission("android.permission.BLUETOOTH_CONNECT")!=PackageManager.PERMISSION_GRANTED){pendingPrintNo=no;pendingPrintCustomer=customer;pendingPrintLines=new ArrayList<>(lines);pendingPrintTotal=total;requestPermissions(new String[]{"android.permission.BLUETOOTH_CONNECT"},5101);return;}
@@ -787,7 +804,15 @@ public class MainActivity extends Activity {
         BluetoothDevice[] devices=paired.toArray(new BluetoothDevice[0]);String[] names=new String[devices.length];for(int i=0;i<devices.length;i++)names[i]=(devices[i].getName()==null?"طابعة بلوتوث":devices[i].getName())+"\n"+devices[i].getAddress();
         new AlertDialog.Builder(this).setTitle("اختر طابعة 58mm").setItems(names,(d,w)->printToBluetooth(devices[w],no,customer,lines,total)).setNegativeButton("إلغاء",null).show();
     }
-    void printToBluetooth(BluetoothDevice device,String no,String customer,ArrayList<Line> lines,double total){long cid=customer==null||customer.trim().isEmpty()?-1:db.customerIdByName(customer.trim());String text=receiptTextFromLines(no,customer,lines,total,cid);Bitmap bitmap=receiptBitmap(text);new Thread(()->{BluetoothSocket socket=null;OutputStream out=null;try{socket=device.createRfcommSocketToServiceRecord(UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"));socket.connect();out=socket.getOutputStream();out.write(new byte[]{0x1B,0x40});out.write(rasterBytes(bitmap));out.write(new byte[]{0x0A,0x0A,0x0A});out.flush();runOnUiThread(()->Toast.makeText(this,"تم إرسال الفاتورة إلى الطابعة",Toast.LENGTH_SHORT).show());}catch(Exception e){runOnUiThread(()->Toast.makeText(this,"تعذر الاتصال بالطابعة: "+(e.getMessage()==null?"تحقق من الاقتران":e.getMessage()),Toast.LENGTH_LONG).show());}finally{try{if(out!=null)out.close();}catch(Exception ignored){}try{if(socket!=null)socket.close();}catch(Exception ignored){}}}).start();}
+    void printToBluetooth(BluetoothDevice device,String no,String customer,ArrayList<Line> lines,double total){
+        long cid=customer==null||customer.trim().isEmpty()?-1:db.customerIdByName(customer.trim());
+        String text=receiptTextFromLines(no,customer,lines,total,cid);
+        Bitmap bitmap=receiptBitmap(text);
+        new Thread(()->{
+            sendBitmapToBluetooth(device,bitmap);
+            runOnUiThread(()->Toast.makeText(this,"تمت معالجة فاتورة 58mm",Toast.LENGTH_SHORT).show());
+        }).start();
+    }
     byte[] rasterBytes(Bitmap bitmap){int width=bitmap.getWidth(),height=bitmap.getHeight(),bpr=(width+7)/8;byte[] out=new byte[8+bpr*height];out[0]=0x1D;out[1]=0x76;out[2]=0x30;out[3]=0;out[4]=(byte)(bpr&255);out[5]=(byte)((bpr>>8)&255);out[6]=(byte)(height&255);out[7]=(byte)((height>>8)&255);int p=8;for(int y=0;y<height;y++)for(int xb=0;xb<bpr;xb++){int v=0;for(int bit=0;bit<8;bit++){int x=xb*8+bit;if(x<width){int px=bitmap.getPixel(x,y);int g=(Color.red(px)+Color.green(px)+Color.blue(px))/3;if(g<180)v|=1<<(7-bit);}}out[p++]=(byte)v;}return out;}
     @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){super.onRequestPermissionsResult(requestCode,permissions,grantResults);if(requestCode==REQ_CONTACTS){if(grantResults.length>0&&grantResults[0]==PackageManager.PERMISSION_GRANTED)importContact();else Toast.makeText(this,"يلزم السماح بالوصول إلى جهات الاتصال",Toast.LENGTH_LONG).show();}else if(requestCode==5101&&grantResults.length>0&&grantResults[0]==PackageManager.PERMISSION_GRANTED&&pendingPrintLines!=null){printInvoiceBluetooth(pendingPrintNo,pendingPrintCustomer,pendingPrintLines,pendingPrintTotal);}else if(requestCode==5102&&grantResults.length>0&&grantResults[0]==PackageManager.PERMISSION_GRANTED&&!pendingPrintText.isEmpty()){String x=pendingPrintText;pendingPrintText="";printTextBluetooth(x);}}
     void thermalPreview(String no,String customer,LinearLayout rows,double total){preview(no,customer,new ArrayList<Line>(),total,false,-1);}
@@ -1343,12 +1368,43 @@ public class MainActivity extends Activity {
         String invoiceCompactDetails(String no){Cursor c=getReadableDatabase().rawQuery("SELECT name,qty,total FROM invoice_items WHERE invoice_id=(SELECT id FROM invoices WHERE no=? ORDER BY id DESC LIMIT 1) ORDER BY id",new String[]{no});StringBuilder s=new StringBuilder("تفاصيل: ");int n=0;while(c.moveToNext()&&n<6){if(n>0)s.append(" • ");s.append(c.getString(0)).append(" × ").append(fmt(c.getDouble(1))).append(" = ").append(fmt(c.getDouble(2)));n++;}c.close();return n==0?"تفاصيل الفاتورة غير متاحة":s.toString();}
         Cursor invoices(){return getReadableDatabase().rawQuery("SELECT id,no,customer,total,date FROM invoices ORDER BY datetime(date) DESC, id DESC LIMIT 100",null);}
         Cursor recentActivity(){
-            return getReadableDatabase().rawQuery(
-                "SELECT kind,ref,title,amount,date,sort_id FROM ("+
-                "SELECT 1 AS kind,no AS ref,'فاتورة '+no+' • '+CASE WHEN customer IS NULL OR customer='' THEN 'نقدي' ELSE customer END AS title,total AS amount,date,id AS sort_id FROM invoices "+
-                "UNION ALL "+
-                "SELECT 2 AS kind,CAST(t.id AS TEXT) AS ref,CASE WHEN details IS NULL OR details='' THEN 'عملية مالية' ELSE details END || ' • ' || CASE WHEN c.name IS NULL THEN '' ELSE c.name END AS title,amount,date,id AS sort_id FROM transactions t LEFT JOIN customers c ON c.id=t.customer_id WHERE details NOT LIKE 'فاتورة مبيعات رقم %'"+
-                ") ORDER BY datetime(date) DESC, sort_id DESC LIMIT 200",null);
+            android.database.MatrixCursor out=new android.database.MatrixCursor(
+                new String[]{"kind","ref","title","amount","date","sort_id"});
+            ArrayList<Object[]> rows=new ArrayList<>();
+            SQLiteDatabase d=getReadableDatabase();
+            Cursor inv=null,tr=null;
+            try{
+                inv=d.rawQuery("SELECT id,no,customer,COALESCE(total,0),COALESCE(date,''),id FROM invoices",null);
+                while(inv.moveToNext()){
+                    long id=inv.getLong(0);
+                    String no=inv.getString(1)==null?"":inv.getString(1);
+                    String customer=inv.getString(2);
+                    if(customer==null||customer.trim().isEmpty())customer="نقدي";
+                    rows.add(new Object[]{1,no,"فاتورة "+no+" • "+customer,inv.getDouble(3),inv.getString(4),id});
+                }
+            }finally{if(inv!=null)inv.close();}
+            try{
+                tr=d.rawQuery("SELECT t.id,t.details,COALESCE(t.amount,0),COALESCE(t.date,''),t.customer_id,c.name,t.type FROM transactions t LEFT JOIN customers c ON c.id=t.customer_id",null);
+                while(tr.moveToNext()){
+                    String details=tr.getString(1);
+                    // قيد الفاتورة يُعرض مرة واحدة كفاتورة، وليس كحركة إضافية.
+                    if(details!=null && (details.startsWith("فاتورة مبيعات رقم ") || details.startsWith("دفعة فاتورة رقم "))) continue;
+                    String customer=tr.getString(5);
+                    if(customer==null)customer="";
+                    String title=(details==null||details.trim().isEmpty()?"عملية مالية":details.trim());
+                    if(!customer.trim().isEmpty()) title+=" • "+customer.trim();
+                    rows.add(new Object[]{2,String.valueOf(tr.getLong(0)),title,tr.getDouble(2),tr.getString(3),tr.getLong(0)});
+                }
+            }finally{if(tr!=null)tr.close();}
+            Collections.sort(rows,(a,b)->{
+                String da=(String)a[4], dbb=(String)b[4];
+                int x=dbb.compareTo(da);
+                if(x!=0)return x;
+                return Long.compare((Long)b[5],(Long)a[5]);
+            });
+            int n=Math.min(200,rows.size());
+            for(int i=0;i<n;i++) out.addRow(rows.get(i));
+            return out;
         }
         long transactionIdForInvoice(String no){
             Cursor c=getReadableDatabase().rawQuery("SELECT id FROM transactions WHERE details=? ORDER BY id DESC LIMIT 1",new String[]{"فاتورة مبيعات رقم "+no});
