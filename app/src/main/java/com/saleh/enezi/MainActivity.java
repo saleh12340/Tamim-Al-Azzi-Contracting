@@ -717,3 +717,25 @@ public class MainActivity extends Activity {
         double balanceByName(String n){Cursor c=getReadableDatabase().rawQuery("SELECT id FROM customers WHERE name=? LIMIT 1",new String[]{n});if(!c.moveToFirst()){c.close();return 0;}long id=c.getLong(0);c.close();return balance(id);}
         String invoiceNo(long id){Cursor c=getReadableDatabase().rawQuery("SELECT no FROM invoices WHERE id=?",new String[]{String.valueOf(id)});String x=c.moveToFirst()?c.getString(0):"";c.close();return x==null?"":x;}
         String invoiceCustomer(long id){Cursor c=getReadableDatabase().rawQuery("SELECT customer FROM invoices WHERE id=?",new String[]{String.valueOf(id)});String x=c.moveToFirst()?c.getString(0):"";c.close();return x==null?"":x;}
+        void updateInvoice(long id,String no,String customer,double total,String date){ContentValues v=new ContentValues();v.put("no",no);v.put("customer",customer);v.put("total",total);v.put("date",date);getWritableDatabase().update("invoices",v,"id=?",new String[]{String.valueOf(id)});}
+        Cursor invoiceLines(long id){return getReadableDatabase().rawQuery("SELECT id,name,qty,total FROM invoice_items WHERE invoice_id=? ORDER BY id",new String[]{String.valueOf(id)});}
+        void replaceInvoiceLines(long id,ArrayList<Line> ls){SQLiteDatabase d=getWritableDatabase();d.delete("invoice_items","invoice_id=?",new String[]{String.valueOf(id)});for(Line l:ls){ContentValues v=new ContentValues();v.put("invoice_id",id);v.put("name",l.name);v.put("qty",l.qty);v.put("total",l.total);d.insert("invoice_items",null,v);}}
+        void deleteInvoice(long id){String no=invoiceNo(id);deleteInvoiceTransaction(no);SQLiteDatabase d=getWritableDatabase();d.delete("invoice_items","invoice_id=?",new String[]{String.valueOf(id)});d.delete("invoices","id=?",new String[]{String.valueOf(id)});}
+        void deleteInvoiceTransaction(String no){getWritableDatabase().delete("transactions","details=?",new String[]{"فاتورة مبيعات رقم "+no});}
+        void addTransactionOnce(long id,double a,String details,String date){if(id>0)addTransaction(id,a,details,1,date);}
+        int nextInvoice(){return invoiceCount()+1;}
+        long invoiceIdByNo(String no){Cursor c=getReadableDatabase().rawQuery("SELECT id FROM invoices WHERE no=? ORDER BY id DESC LIMIT 1",new String[]{no});long x=c.moveToFirst()?c.getLong(0):-1;c.close();return x;}
+        Cursor transactionById(long id){return getReadableDatabase().rawQuery("SELECT id,customer_id,date,details,amount,type FROM transactions WHERE id=?",new String[]{String.valueOf(id)});}
+        void updateTransaction(long id,double amount,String details,int type,String date){ContentValues v=new ContentValues();v.put("amount",amount);v.put("details",details);v.put("type",type);v.put("date",date);getWritableDatabase().update("transactions",v,"id=?",new String[]{String.valueOf(id)});}
+        void deleteTransaction(long id){getWritableDatabase().delete("transactions","id=?",new String[]{String.valueOf(id)});}
+        void deleteCustomer(long id){
+            SQLiteDatabase d=getWritableDatabase();
+            Cursor c=d.rawQuery("SELECT id FROM invoices WHERE customer=(SELECT name FROM customers WHERE id=?)",new String[]{String.valueOf(id)});
+            ArrayList<Long> invoiceIds=new ArrayList<>();while(c.moveToNext())invoiceIds.add(c.getLong(0));c.close();
+            d.delete("transactions","customer_id=?",new String[]{String.valueOf(id)});
+            for(Long iid:invoiceIds)d.delete("invoice_items","invoice_id=?",new String[]{String.valueOf(iid)});
+            d.delete("invoices","customer=(SELECT name FROM customers WHERE id=?)",new String[]{String.valueOf(id)});
+            d.delete("customers","id=?",new String[]{String.valueOf(id)});
+        }
+    }
+}
