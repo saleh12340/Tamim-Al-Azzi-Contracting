@@ -234,12 +234,12 @@ public class MainActivity extends Activity {
         String[] t1={"👥 العملاء والحسابات","🧾 فواتير البيع"};
         View.OnClickListener[] a1={v->customers(),v->invoiceHistory()};
         for(int i=0;i<2;i++){
-            Button b=action(t1[i],GREEN); b.setTextSize(11); b.setMaxLines(1); fitInside(b,12f,9f);
+            Button b=action(t1[i],GREEN); b.setTextSize(13); b.setMaxLines(1); fitInside(b,14f,10f);
             b.setOnClickListener(a1[i]);
-            LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(44),1); p.setMargins(i==0?0:dp(3),0,i==0?dp(3):0,0);
+            LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(52),1); p.setMargins(i==0?0:dp(3),0,i==0?dp(3):0,0);
             tabs1.addView(b,p);
         }
-        middle.addView(tabs1,new LinearLayout.LayoutParams(-1,dp(46))); addSpaceTo(middle,4);
+        middle.addView(tabs1,new LinearLayout.LayoutParams(-1,dp(54))); addSpaceTo(middle,4);
 
         LinearLayout tabs2=new LinearLayout(this);
         tabs2.setOrientation(LinearLayout.HORIZONTAL); tabs2.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
@@ -251,7 +251,7 @@ public class MainActivity extends Activity {
             LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(44),1); p.setMargins(i==0?0:dp(3),0,i==0?dp(3):0,0);
             tabs2.addView(b,p);
         }
-        middle.addView(tabs2,new LinearLayout.LayoutParams(-1,dp(46))); addSpaceTo(middle,7);
+        middle.addView(tabs2,new LinearLayout.LayoutParams(-1,dp(54))); addSpaceTo(middle,7);
 
         LinearLayout screen=card();
         screen.setPadding(dp(9),dp(7),dp(9),dp(7));
@@ -283,9 +283,9 @@ public class MainActivity extends Activity {
         backup.setOnClickListener(v->showBackupRestore());
         footer.addView(backup,new LinearLayout.LayoutParams(0,dp(48),1));
 
-        Button quick=action("⚡ إجراء سريع",GOLD);
+        Button quick=action("⚡ فاتورة جديدة",GOLD);
         quick.setTextSize(12); quick.setMaxLines(1); fitInside(quick,13f,9f);
-        quick.setOnClickListener(v->showGeneralActions());
+        quick.setOnClickListener(v->invoice());
         footer.addView(quick,new LinearLayout.LayoutParams(0,dp(48),1.35f));
         root.addView(footer,new LinearLayout.LayoutParams(-1,dp(56)));
 
@@ -1388,6 +1388,15 @@ public class MainActivity extends Activity {
         refresh[0].run();
     }
     void purchaseInvoices(){
+        try{
+            SQLiteDatabase safeDb=db.getWritableDatabase();
+            safeDb.execSQL("CREATE TABLE IF NOT EXISTS suppliers(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT UNIQUE,phone TEXT)");
+            safeDb.execSQL("CREATE TABLE IF NOT EXISTS purchase_invoices(id INTEGER PRIMARY KEY AUTOINCREMENT,no TEXT,date TEXT,supplier TEXT,total REAL DEFAULT 0)");
+            safeDb.execSQL("CREATE TABLE IF NOT EXISTS purchase_items(id INTEGER PRIMARY KEY AUTOINCREMENT,purchase_id INTEGER,item TEXT,qty REAL,cost REAL,sale REAL,total REAL)");
+        }catch(Exception e){
+            Toast.makeText(this,"تعذر تجهيز قاعدة بيانات فواتير الشراء: "+e.getMessage(),Toast.LENGTH_LONG).show();
+            return;
+        }
         base("فواتير الشراء");
         section("فاتورة شراء جديدة");
 
