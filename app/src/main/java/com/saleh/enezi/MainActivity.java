@@ -305,11 +305,12 @@ public class MainActivity extends Activity {
     }
 
     void showGeneralActions(){
-        String[] choices={"🧾 فاتورة جديدة","👥 إضافة عميل","📦 إضافة صنف","📊 التقارير"};
+        String[] choices={"🧾 فاتورة مبيعات جديدة","🛒 فاتورة شراء جديدة","👥 إضافة عميل","📦 إضافة صنف","📊 التقارير"};
         new AlertDialog.Builder(this).setTitle("إجراء عام").setItems(choices,(d,w)->{
             if(w==0) invoice();
-            else if(w==1) customers();
-            else if(w==2) inventory();
+            else if(w==1) newPurchaseInvoice();
+            else if(w==2) customers();
+            else if(w==3) inventory();
             else reports();
         }).setNegativeButton("إغلاق",null).show();
     }
@@ -1512,7 +1513,8 @@ public class MainActivity extends Activity {
         content.addView(box,new LinearLayout.LayoutParams(-1,-2));addSpace(6);
 
         ArrayList<PurchaseLine> lines=new ArrayList<>();
-        Runnable redraw=()->{
+        final Runnable[] redraw={null};
+        redraw[0]=()->{
             rows.removeAllViews();double sum=0;
             for(PurchaseLine l:lines){
                 sum+=l.total;LinearLayout r=new LinearLayout(this);r.setOrientation(LinearLayout.HORIZONTAL);r.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);r.setGravity(Gravity.CENTER_VERTICAL);
@@ -1525,7 +1527,7 @@ public class MainActivity extends Activity {
         Runnable calc=()->{try{double t=Double.parseDouble(total.getText().toString().trim());double q=Double.parseDouble(qty.getText().toString().trim());unit.setText(q>0?fmt(t/q):"");}catch(Exception e){unit.setText("");}};
         total.addTextChangedListener(new android.text.TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int c,int a){}public void onTextChanged(CharSequence s,int st,int b,int c){calc.run();}public void afterTextChanged(android.text.Editable e){}});
         qty.addTextChangedListener(new android.text.TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int c,int a){}public void onTextChanged(CharSequence s,int st,int b,int c){calc.run();}public void afterTextChanged(android.text.Editable e){}});
-        add.setOnClickListener(v->{try{double t=Double.parseDouble(total.getText().toString().trim());double q=Double.parseDouble(qty.getText().toString().trim());double s=Double.parseDouble(sale.getText().toString().trim());String n=item.getText().toString().trim();if(n.isEmpty()||q<=0||t<0||s<0)throw new Exception();lines.add(new PurchaseLine(n,q,t/q,s,t));redraw.run();total.setText("");qty.setText("1");item.setText("");sale.setText("");unit.setText("");total.requestFocus();}catch(Exception e){Toast.makeText(this,"أدخل القيمة الإجمالية والكمية واسم الصنف وسعر البيع بشكل صحيح",Toast.LENGTH_SHORT).show();}});
+        add.setOnClickListener(v->{try{double t=Double.parseDouble(total.getText().toString().trim());double q=Double.parseDouble(qty.getText().toString().trim());double s=Double.parseDouble(sale.getText().toString().trim());String n=item.getText().toString().trim();if(n.isEmpty()||q<=0||t<0||s<0)throw new Exception();lines.add(new PurchaseLine(n,q,t/q,s,t));redraw[0].run();total.setText("");qty.setText("1");item.setText("");sale.setText("");unit.setText("");total.requestFocus();}catch(Exception e){Toast.makeText(this,"أدخل القيمة الإجمالية والكمية واسم الصنف وسعر البيع بشكل صحيح",Toast.LENGTH_SHORT).show();}});
 
         Button clear=btn("مسح أصناف الفاتورة");clear.setTextColor(MUTED);content.addView(clear,new LinearLayout.LayoutParams(-1,dp(36)));clear.setOnClickListener(v->{lines.clear();redraw[0].run();});addSpace(4);
         Button save=action("💾 حفظ فاتورة الشراء",GREEN);save.setTextSize(12);content.addView(save,new LinearLayout.LayoutParams(-1,dp(42)));addSpace(5);
@@ -1538,7 +1540,7 @@ public class MainActivity extends Activity {
             db.updateStockFromPurchase(lines);
             Toast.makeText(this,"تم حفظ فاتورة الشراء وتحديث المخزون",Toast.LENGTH_LONG).show();purchaseInvoices();
         }catch(Exception e){Toast.makeText(this,"تحقق من اسم المورد ورقم الفاتورة والأصناف",Toast.LENGTH_SHORT).show();}});
-        redraw.run();calc.run();
+        redraw[0].run();calc.run();
     }
 
     static class PurchaseLine{String name;double qty,cost,sale,total;PurchaseLine(String n,double q,double c,double s,double t){name=n;qty=q;cost=c;sale=s;total=t;}}
