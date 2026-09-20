@@ -393,6 +393,23 @@ public class MainActivity extends Activity {
             FileOutputStream out=new FileOutputStream(file,false);out.write(x.toString().getBytes("UTF-8"));out.close();
         }catch(Exception ignored){}
     }
+    void notifyNewOperation(String title,String text){
+        try{
+            if(android.os.Build.VERSION.SDK_INT>=33 && checkSelfPermission("android.permission.POST_NOTIFICATIONS")!=android.content.pm.PackageManager.PERMISSION_GRANTED){
+                requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"},7201); return;
+            }
+            String channelId="operations";
+            android.app.NotificationManager nm=(android.app.NotificationManager)getSystemService(NOTIFICATION_SERVICE);
+            if(android.os.Build.VERSION.SDK_INT>=26){
+                android.app.NotificationChannel ch=new android.app.NotificationChannel(channelId,"إشعارات العمليات",android.app.NotificationManager.IMPORTANCE_DEFAULT);
+                ch.setDescription("إشعار عند إضافة فاتورة أو عملية جديدة");nm.createNotificationChannel(ch);
+            }
+            android.app.Notification.Builder b=android.os.Build.VERSION.SDK_INT>=26?new android.app.Notification.Builder(this,channelId):new android.app.Notification.Builder(this);
+            b.setSmallIcon(android.R.drawable.ic_menu_info_details).setContentTitle(title).setContentText(text).setAutoCancel(true);
+            nm.notify((int)(System.currentTimeMillis()%100000),b.build());
+        }catch(Exception ignored){}
+    }
+
     int dp(int v){return (int)(v*getResources().getDisplayMetrics().density+0.5f);}
     GradientDrawable bg(int color,float radius){return rounded(color,dp((int)radius));}
     GradientDrawable outline(int color,float radius){return outlined(color,1,dp((int)radius));}
