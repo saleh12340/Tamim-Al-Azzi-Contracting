@@ -333,6 +333,24 @@ public class MainActivity extends Activity {
         final ArrayList<Line> lines=new ArrayList<>();
         if(edit){Cursor c=db.invoiceLines(invoiceId);while(c.moveToNext())lines.add(new Line(c.getString(1),c.getDouble(2),c.getDouble(3)));c.close();}
 
+        TextView customerBalance=tv("رصيد العميل: 0",11);
+        customerBalance.setTextColor(GREEN);customerBalance.setGravity(Gravity.CENTER_RIGHT|Gravity.CENTER_VERTICAL);
+        customerBalance.setBackground(outline(Color.rgb(241,247,242),8));
+        content.addView(customerBalance,new LinearLayout.LayoutParams(-1,dp(30)));addSpace(3);
+        TextView paymentMode=tv("نوع السداد: نقدي — ويمكن ترك الباقي آجلًا",10);
+        paymentMode.setTextColor(MUTED);paymentMode.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
+        content.addView(paymentMode,new LinearLayout.LayoutParams(-1,dp(26)));addSpace(2);
+        Runnable updateCustomerBalance=()->{
+            String cn=customer.getText().toString().trim();
+            double cb=cn.isEmpty()?0:db.balanceByName(cn);
+            customerBalance.setText("رصيد العميل الحالي: "+balanceText(cb));
+            double paidPreview=0;try{paidPreview=Double.parseDouble(paid.getText().toString().trim());}catch(Exception ignored){}
+            double invPreview=0;for(Line lx:lines)invPreview+=lx.total;
+            double net=cb+invPreview-paidPreview;
+            paymentMode.setText("نوع السداد: "+(paidPreview>=invPreview&&invPreview>0?"نقدي":"آجل")+" • بعد الفاتورة: "+balanceText(net));
+        };
+        customer.setOnItemClickListener((p,v,pos,id)->updateCustomerBalance.run());
+        customer.addTextChangedListener(new android.text.TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int c,int a){}public void onTextChanged(CharSequence s,int st,int b,int c){updateCustomerBalance.run();}public void afterTextChanged(android.text.Editable e){}});
         Runnable redraw=()->{
             rows.removeAllViews();
             double run=0,baseBal=db.balanceByName(customer.getText().toString().trim());
@@ -342,7 +360,7 @@ public class MainActivity extends Activity {
             double paidNow=0; try{paidNow=Double.parseDouble(paid.getText().toString().trim());}catch(Exception ignored){}
             if(paidNow<0)paidNow=0;
             double remaining=currentBalance+run-paidNow;if(Math.abs(remaining)<0.005)remaining=0;
-            remainingLabel.setText("المتبقي: "+fmt(remaining)+" ريال");
+            remainingLabel.setText("المتبقي: "+fmt(remaining)+" ريال"); updateCustomerBalance.run();
         };
 
         add.setOnClickListener(v->{
@@ -400,11 +418,22 @@ public class MainActivity extends Activity {
             }).setNegativeButton("إلغاء",null).show();
     }
     void saveInvoice(String name,String no,ArrayList<Line> lines,double total,double paid,String phone,boolean edit,long oldId){
-        if(paid>total){Toast.makeText(this,"المبلغ المدفوع لا يمكن أن يتجاوز إجمالي الفاتورة.",Toast.LENGTH_SHORT).show();return;}
+        if(name==null||name.trim().isEmpty()){Toast.makeText(this,"اختر العميل أو اترك الفاتورة نقدية.",Toast.LENGTH_SHORT).show();return;}
+        if(paid<0){Toast.makeText(this,"المبلغ المدفوع غير صحيح.",Toast.LENGTH_SHORT).show();return;}
         long cid=db.customer(name,phone); String date=db.now();
-        if(edit){String oldNo=db.invoiceNo(oldId);db.deleteInvoiceTransaction(oldNo);db.updateInvoice(oldId,no,name,total,paid,date);db.replaceInvoiceLines(oldId,lines);}
-        else{long id=db.addInvoice(no,name,total,paid,date);db.replaceInvoiceLines(id,lines);}
-        double due=Math.max(0,total-paid); db.addTransactionOnce(cid,due,"فاتورة مبيعات رقم "+no,date);
+        if(edit){
+            String oldNo=db.invoiceNo(oldId);
+            db.deleteInvoiceTransactions(oldNo);
+            db.updateInvoice(oldId,no,name,total,paid,date);
+            db.replaceInvoiceLines(oldId,lines);
+        }else{
+            long id=db.addInvoice(no,name,total,paid,date);
+            db.replaceInvoiceLines(id,lines);
+        }
+        // القيد المحاسبي الصحيح: الفاتورة تزيد ما على العميل، والدفع ينقصه.
+        // إذا زاد الدفع عن قيمة الفاتورة، يتحول الفرق تلقائياً إلى رصيد للعميل.
+        if(total>0) db.addTransactionOnce(cid,total,"فاتورة مبيعات رقم "+no,date);
+        if(paid>0) db.addPaymentTransaction(cid,paid,"دفعة فاتورة رقم "+no,date);
         cacheLastInvoice(no,name,lines,total,date);
         notifyNewOperation("تم حفظ الفاتورة","الفاتورة رقم "+no+" — "+fmt(total)+" ريال");
         showPostSaveActions(no,name,lines,total,cid);
@@ -805,33 +834,34 @@ public class MainActivity extends Activity {
         section("سجل العمليات");
         LinearLayout selectedActions=new LinearLayout(this);selectedActions.setOrientation(LinearLayout.HORIZONTAL);Button shareSelected=button("📤 مشاركة المحدد"),printSelected=button("🖨 طباعة المحدد");shareSelected.setTextColor(GREEN);printSelected.setTextColor(GREEN);
         selectedActions.addView(shareSelected,new LinearLayout.LayoutParams(0,dp(40),1));selectedActions.addView(printSelected,new LinearLayout.LayoutParams(0,dp(40),1));content.addView(selectedActions);addSpace(5);
-        HorizontalScrollView tableScroll=new HorizontalScrollView(this);tableScroll.setHorizontalScrollBarEnabled(true);tableScroll.setFillViewport(false);
+        // سجل العمليات مصمم لعرض كامل البيانات داخل شاشة الجوال بدون تمرير أفقي.
         LinearLayout table=new LinearLayout(this);table.setOrientation(LinearLayout.VERTICAL);table.setPadding(0,0,0,dp(4));
-        final int tableW=732;
-        LinearLayout header=new LinearLayout(this);header.setOrientation(LinearLayout.HORIZONTAL);header.setGravity(Gravity.CENTER_VERTICAL);header.setBackground(outline(Color.rgb(241,247,242),8));
-        String[] heads={"الرصيد","المبلغ","رقم الفاتورة","التفاصيل","التاريخ والوقت"};int[] widths={120,120,120,180,120};
-        for(int i=0;i<heads.length;i++){TextView h=tv(heads[i],10);h.setTextColor(GREEN);h.setTypeface(Typeface.DEFAULT,Typeface.BOLD);h.setGravity(Gravity.CENTER);header.addView(h,new LinearLayout.LayoutParams(dp(widths[i]),dp(38)));}
-        table.addView(header,new LinearLayout.LayoutParams(dp(tableW),dp(40)));
+        LinearLayout header=new LinearLayout(this);header.setOrientation(LinearLayout.HORIZONTAL);header.setGravity(Gravity.CENTER_VERTICAL);header.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);header.setBackground(outline(Color.rgb(241,247,242),8));
+        String[] heads={"الرصيد","المبلغ","الفاتورة","التفاصيل","التاريخ والوقت"};float[] hw={1.0f,0.92f,0.72f,1.55f,1.05f};
+        for(int i=0;i<heads.length;i++){TextView h=tv(heads[i],9);h.setTextColor(GREEN);h.setTypeface(Typeface.DEFAULT,Typeface.BOLD);h.setGravity(Gravity.CENTER);h.setMaxLines(2);header.addView(h,new LinearLayout.LayoutParams(0,dp(34),hw[i]));}
+        table.addView(header,new LinearLayout.LayoutParams(-1,dp(36)));
         final ArrayList<Long> selected=new ArrayList<>();
         Runnable refresh=()->{
-            while(table.getChildCount()>1)table.removeViewAt(1);selected.clear();double runningAfter=db.balance(id);Cursor c=db.transactions(id);
+            while(table.getChildCount()>1)table.removeViewAt(1);selected.clear();
+            double runningAfter=db.balance(id);Cursor c=db.transactions(id);
             while(c.moveToNext()){
                 long tid=c.getLong(0);String date=c.getString(1),d=c.getString(2);double a=c.getDouble(3);int type=c.getInt(4);String invNo=db.invoiceNoFromTransaction(d);
-                LinearLayout r=new LinearLayout(this);r.setOrientation(LinearLayout.HORIZONTAL);r.setGravity(Gravity.CENTER_VERTICAL);r.setPadding(dp(2),dp(2),dp(2),dp(2));r.setBackground(outlined(CARD,1,10));
-                CheckBox check=new CheckBox(this);check.setText("");check.setGravity(Gravity.CENTER);
-                TextView rv=tv(balanceText(runningAfter),9);rv.setTextColor(GREEN);rv.setGravity(Gravity.CENTER);
-                TextView av=tv((type==1?"عليه: ":"له: ")+fmt(a)+" ريال",10);av.setTextColor(type==1?Color.rgb(190,55,45):GREEN);av.setGravity(Gravity.CENTER);
-                TextView iv=tv(invNo.isEmpty()?"—":invNo,10);iv.setGravity(Gravity.CENTER);
-                TextView dv=tv(d==null||d.trim().isEmpty()?"عملية مالية":d,10);dv.setGravity(Gravity.CENTER);dv.setMaxLines(2);dv.setEllipsize(null);
-                TextView dt=tv(date,9);dt.setTextColor(MUTED);dt.setGravity(Gravity.CENTER);
-                r.addView(rv,new LinearLayout.LayoutParams(dp(120),dp(48)));r.addView(av,new LinearLayout.LayoutParams(dp(120),dp(48)));r.addView(iv,new LinearLayout.LayoutParams(dp(120),dp(48)));r.addView(dv,new LinearLayout.LayoutParams(dp(180),dp(48)));r.addView(dt,new LinearLayout.LayoutParams(dp(120),dp(48)));
-                r.addView(check,0,new LinearLayout.LayoutParams(dp(42),dp(48)));
+                LinearLayout r=new LinearLayout(this);r.setOrientation(LinearLayout.HORIZONTAL);r.setGravity(Gravity.CENTER_VERTICAL);r.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);r.setPadding(dp(1),dp(1),dp(1),dp(1));r.setBackground(outlined(CARD,1,8));
+                TextView rv=tv(balanceText(runningAfter),8);rv.setTextColor(GREEN);rv.setGravity(Gravity.CENTER);rv.setMaxLines(2);
+                TextView av=tv((type==1?"عليه ":"له ")+fmt(a),8);av.setTextColor(type==1?Color.rgb(190,55,45):GREEN);av.setGravity(Gravity.CENTER);av.setMaxLines(2);
+                TextView iv=tv(invNo.isEmpty()?"—":invNo,8);iv.setGravity(Gravity.CENTER);iv.setMaxLines(2);
+                TextView dv=tv(d==null||d.trim().isEmpty()?"عملية مالية":d,8);dv.setGravity(Gravity.CENTER);dv.setMaxLines(3);dv.setEllipsize(null);
+                TextView dt=tv(date,7);dt.setTextColor(MUTED);dt.setGravity(Gravity.CENTER);dt.setMaxLines(2);
+                View[] cells={rv,av,iv,dv,dt};
+                for(int i=0;i<cells.length;i++)r.addView(cells[i],new LinearLayout.LayoutParams(0,dp(48),hw[i]));
+                CheckBox check=new CheckBox(this);check.setText("");check.setGravity(Gravity.CENTER);check.setPadding(0,0,0,0);
+                r.addView(check,new LinearLayout.LayoutParams(dp(24),dp(48)));
                 r.setOnClickListener(v->showOperationDetails(name,tid,d,a,type));r.setOnLongClickListener(v->{operationActions(id,name,tid,d,a,type);return true;});
                 check.setOnCheckedChangeListener((b,is)->{if(is){if(!selected.contains(tid))selected.add(tid);}else selected.remove(tid);});
-                table.addView(r,new LinearLayout.LayoutParams(dp(tableW+42),dp(50)));addSpaceTo(table,4);runningAfter-=(type==1?a:-a);
+                table.addView(r,new LinearLayout.LayoutParams(-1,dp(50)));addSpaceTo(table,2);runningAfter-=(type==1?a:-a);
             }c.close();bal.setText(balanceText(db.balance(id)));headerBalance.setText(balanceText(db.balance(id)));
         };
-        tableScroll.addView(table,new ViewGroup.LayoutParams(dp(tableW+42),-2));content.addView(tableScroll,new LinearLayout.LayoutParams(-1,-2));
+        content.addView(table,new LinearLayout.LayoutParams(-1,-2));
         View.OnClickListener addOp=v->{try{double a=Double.parseDouble(amount.getText().toString().trim());if(a<=0)throw new Exception();db.addTransaction(id,a,details.getText().toString().trim(),v==debit?1:0,db.now());amount.setText("");details.setText("");refresh.run();notifyNewOperation("عملية جديدة",name+" • "+fmt(a)+" ريال");}catch(Exception e){Toast.makeText(this,"أدخل المبلغ بشكل صحيح",Toast.LENGTH_SHORT).show();}};
         debit.setOnClickListener(addOp);credit.setOnClickListener(addOp);
         shareSelected.setOnClickListener(v->{if(selected.isEmpty())Toast.makeText(this,"حدد عملية واحدة أو أكثر أولاً",Toast.LENGTH_SHORT).show();else shareSelectedTransactions(id,name,new ArrayList<>(selected));});
@@ -1309,8 +1339,13 @@ public class MainActivity extends Activity {
         void updateInvoice(long id,String no,String customer,double total,double paid,String date){ContentValues v=new ContentValues();v.put("no",no);v.put("customer",customer);v.put("total",total);v.put("paid",paid);v.put("date",date);getWritableDatabase().update("invoices",v,"id=?",new String[]{String.valueOf(id)});}
         Cursor invoiceLines(long id){return getReadableDatabase().rawQuery("SELECT id,name,qty,total FROM invoice_items WHERE invoice_id=? ORDER BY id",new String[]{String.valueOf(id)});}
         void replaceInvoiceLines(long id,ArrayList<Line> ls){SQLiteDatabase d=getWritableDatabase();d.delete("invoice_items","invoice_id=?",new String[]{String.valueOf(id)});for(Line l:ls){ContentValues v=new ContentValues();v.put("invoice_id",id);v.put("name",l.name);v.put("qty",l.qty);v.put("total",l.total);d.insert("invoice_items",null,v);}}
-        void deleteInvoice(long id){String no=invoiceNo(id);deleteInvoiceTransaction(no);SQLiteDatabase d=getWritableDatabase();d.delete("invoice_items","invoice_id=?",new String[]{String.valueOf(id)});d.delete("invoices","id=?",new String[]{String.valueOf(id)});}
-        void deleteInvoiceTransaction(String no){getWritableDatabase().delete("transactions","details=?",new String[]{"فاتورة مبيعات رقم "+no});}
+        void deleteInvoice(long id){String no=invoiceNo(id);deleteInvoiceTransactions(no);SQLiteDatabase d=getWritableDatabase();d.delete("invoice_items","invoice_id=?",new String[]{String.valueOf(id)});d.delete("invoices","id=?",new String[]{String.valueOf(id)});}
+        void deleteInvoiceTransaction(String no){deleteInvoiceTransactions(no);}
+        void deleteInvoiceTransactions(String no){
+            SQLiteDatabase d=getWritableDatabase();
+            d.delete("transactions","details=? OR details=?",new String[]{"فاتورة مبيعات رقم "+no,"دفعة فاتورة رقم "+no});
+        }
+        void addPaymentTransaction(long id,double a,String details,String date){if(id<1||a<=0)return;addTransaction(id,a,details,0,date);}
         void addTransactionOnce(long id,double a,String details,String date){if(id>0)addTransaction(id,a,details,1,date);}
         int nextInvoice(){Cursor c=getReadableDatabase().rawQuery("SELECT COALESCE(MAX(CAST(no AS INTEGER)),0)+1 FROM invoices",null);int x=c.moveToFirst()?c.getInt(0):1;c.close();return x;}
         long invoiceIdByNo(String no){Cursor c=getReadableDatabase().rawQuery("SELECT id FROM invoices WHERE no=? ORDER BY id DESC LIMIT 1",new String[]{no});long x=c.moveToFirst()?c.getLong(0):-1;c.close();return x;}
