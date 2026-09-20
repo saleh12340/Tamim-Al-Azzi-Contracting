@@ -457,7 +457,8 @@ public class MainActivity extends Activity {
         };
         customer.setOnItemClickListener((p,v,pos,id)->updateCustomerBalance.run());
         customer.addTextChangedListener(new android.text.TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int c,int a){}public void onTextChanged(CharSequence s,int st,int b,int c){updateCustomerBalance.run();}public void afterTextChanged(android.text.Editable e){}});
-        Runnable redraw=()->{
+        final Runnable[] redraw=new Runnable[1];
+        redraw[0]=()->{
             rows.removeAllViews();
             double run=0,baseBal=db.balanceByName(customer.getText().toString().trim());
             for(Line l:lines){run+=l.total;addRow(rows,l,run,baseBal,lines);}
@@ -1517,7 +1518,7 @@ public class MainActivity extends Activity {
                 sum+=l.total;LinearLayout r=new LinearLayout(this);r.setOrientation(LinearLayout.HORIZONTAL);r.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);r.setGravity(Gravity.CENTER_VERTICAL);
                 String[] vals={fmt(l.total),fmt(l.qty),l.name,fmt(l.cost),fmt(l.sale)};
                 for(int i=0;i<5;i++){TextView v=tv(vals[i],8);v.setGravity(i==2?Gravity.RIGHT|Gravity.CENTER_VERTICAL:Gravity.CENTER);v.setMaxLines(2);v.setEllipsize(TextUtils.TruncateAt.END);v.setBackground(outline(Color.rgb(248,250,248),6));r.addView(v,new LinearLayout.LayoutParams(0,dp(34),w[i]));}
-                Button del=button("حذف");del.setTextSize(9);del.setTextColor(Color.RED);del.setBackgroundColor(Color.TRANSPARENT);del.setOnClickListener(v->{lines.remove(l);redraw.run();});r.addView(del,new LinearLayout.LayoutParams(0,dp(34),w[5]));rows.addView(r,new LinearLayout.LayoutParams(-1,dp(36)));addSpaceTo(rows,2);
+                Button del=button("حذف");del.setTextSize(9);del.setTextColor(Color.RED);del.setBackgroundColor(Color.TRANSPARENT);del.setOnClickListener(v->{lines.remove(l);redraw[0].run();});r.addView(del,new LinearLayout.LayoutParams(0,dp(34),w[5]));rows.addView(r,new LinearLayout.LayoutParams(-1,dp(36)));addSpaceTo(rows,2);
             }
             grand.setText("إجمالي فاتورة الشراء: "+fmt(sum)+" ريال");
         };
@@ -1526,7 +1527,7 @@ public class MainActivity extends Activity {
         qty.addTextChangedListener(new android.text.TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int c,int a){}public void onTextChanged(CharSequence s,int st,int b,int c){calc.run();}public void afterTextChanged(android.text.Editable e){}});
         add.setOnClickListener(v->{try{double t=Double.parseDouble(total.getText().toString().trim());double q=Double.parseDouble(qty.getText().toString().trim());double s=Double.parseDouble(sale.getText().toString().trim());String n=item.getText().toString().trim();if(n.isEmpty()||q<=0||t<0||s<0)throw new Exception();lines.add(new PurchaseLine(n,q,t/q,s,t));redraw.run();total.setText("");qty.setText("1");item.setText("");sale.setText("");unit.setText("");total.requestFocus();}catch(Exception e){Toast.makeText(this,"أدخل القيمة الإجمالية والكمية واسم الصنف وسعر البيع بشكل صحيح",Toast.LENGTH_SHORT).show();}});
 
-        Button clear=btn("مسح أصناف الفاتورة");clear.setTextColor(MUTED);content.addView(clear,new LinearLayout.LayoutParams(-1,dp(36)));clear.setOnClickListener(v->{lines.clear();redraw.run();});addSpace(4);
+        Button clear=btn("مسح أصناف الفاتورة");clear.setTextColor(MUTED);content.addView(clear,new LinearLayout.LayoutParams(-1,dp(36)));clear.setOnClickListener(v->{lines.clear();redraw[0].run();});addSpace(4);
         Button save=action("💾 حفظ فاتورة الشراء",GREEN);save.setTextSize(12);content.addView(save,new LinearLayout.LayoutParams(-1,dp(42)));addSpace(5);
         save.setOnClickListener(v->{try{
             String sn=supplier.getText().toString().trim(),no=invoiceNo.getText().toString().trim();if(sn.isEmpty()||no.isEmpty()||lines.isEmpty())throw new Exception();double sum=0;for(PurchaseLine l:lines)sum+=l.total;
