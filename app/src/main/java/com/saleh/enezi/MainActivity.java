@@ -892,7 +892,7 @@ public class MainActivity extends Activity {
         Cursor invoices(){return getReadableDatabase().rawQuery("SELECT id,no,customer,total,date FROM invoices ORDER BY datetime(date) DESC, id DESC LIMIT 100",null);}
         Cursor recentActivity(){
             return getReadableDatabase().rawQuery(
-                "SELECT kind,ref,title,amount,date FROM ("+
+                "SELECT kind,ref,title,amount,date,sort_id FROM ("+
                 "SELECT 1 AS kind,no AS ref,'فاتورة '+no+' • '+CASE WHEN customer IS NULL OR customer='' THEN 'نقدي' ELSE customer END AS title,total AS amount,date,id AS sort_id FROM invoices "+
                 "UNION ALL "+
                 "SELECT 2 AS kind,'' AS ref,CASE WHEN details IS NULL OR details='' THEN 'عملية مالية' ELSE details END || ' • ' || CASE WHEN c.name IS NULL THEN '' ELSE c.name END AS title,amount,date,id AS sort_id FROM transactions t LEFT JOIN customers c ON c.id=t.customer_id WHERE details NOT LIKE 'فاتورة مبيعات رقم %'"+
