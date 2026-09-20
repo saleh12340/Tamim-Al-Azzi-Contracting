@@ -49,7 +49,7 @@ public class MainActivity extends Activity {
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         getWindow().setStatusBarColor(DARK);
         getWindow().setNavigationBarColor(DARK);
-        db=new DB(this); home();
+        db=new DB(this); BackupReceiver.schedule(this); home();
     }
 
     void confirmExit(){
@@ -328,7 +328,16 @@ public class MainActivity extends Activity {
         final ArrayList<Line> lines=new ArrayList<>();
         if(edit){Cursor c=db.invoiceLines(invoiceId);while(c.moveToNext())lines.add(new Line(c.getString(1),c.getDouble(2),c.getDouble(3)));c.close();}
 
-        TextView customerBalance=tv("رصيد العميل: 0",11);
+        LinearLayout draftActions=new LinearLayout(this);
+        draftActions.setOrientation(LinearLayout.HORIZONTAL);
+        Button saveDraft=button("💾 حفظ مؤقت"), restoreDraft=button("↩ استعادة مؤقت");
+        saveDraft.setTextColor(GREEN); restoreDraft.setTextColor(GREEN);
+        draftActions.addView(saveDraft,new LinearLayout.LayoutParams(0,dp(34),1));
+        draftActions.addView(restoreDraft,new LinearLayout.LayoutParams(0,dp(34),1));
+        content.addView(draftActions,new LinearLayout.LayoutParams(-1,dp(38))); addSpace(4);
+        saveDraft.setOnClickListener(v->saveInvoiceDraft(no.getText().toString(),customer.getText().toString(),paid.getText().toString(),lines));
+        restoreDraft.setOnClickListener(v->restoreInvoiceDraft(no,customer,paid,lines,()->{redraw.run();}));
+                TextView customerBalance=tv("رصيد العميل: 0",11);
         customerBalance.setTextColor(GREEN);customerBalance.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
         customerBalance.setBackground(outline(Color.rgb(241,247,242),8));
         content.addView(customerBalance,new LinearLayout.LayoutParams(-1,dp(30)));addSpace(3);
@@ -432,6 +441,8 @@ public class MainActivity extends Activity {
         if(total>0) db.addTransactionOnce(cid,total,"فاتورة مبيعات رقم "+no,date);
         if(paid>0) db.addPaymentTransaction(cid,paid,"دفعة فاتورة رقم "+no,date);
         cacheLastInvoice(no,name,lines,total,date);
+        clearInvoiceDraft();
+        saveReceiptImage(no,name,lines,total);
         showPostSaveActions(no,name,lines,total,cid,paid);
     }
     
@@ -446,6 +457,90 @@ public class MainActivity extends Activity {
             FileOutputStream out=new FileOutputStream(file,false);out.write(x.toString().getBytes("UTF-8"));out.close();
         }catch(Exception ignored){}
     }
+    String b64(String s){return android.util.Base64.encodeToString((s==null?"":s).getBytes(java.nio.charset.StandardCharsets.UTF_8),android.util.Base64.NO_WRAP);}
+    String unb64(String s){try{return new String(android.util.Base64.decode(s,android.util.Base64.NO_WRAP),java.nio.charset.StandardCharsets.UTF_8);}catch(Exception e){return "";}}
+    void saveInvoiceDraft(String no,String customer,String paid,ArrayList<Line> lines){
+        try{
+            StringBuilder s=new StringBuilder();
+            s.append(b64(no)).append("\n").append(b64(customer)).append("\n").append(b64(paid)).append("\n");
+            for(Line l:lines)s.append(b64(l.name)).append("\t").append(l.qty).append("\t").append(l.total).append("\n");
+            getSharedPreferences("draft",MODE_PRIVATE).edit().putString("invoice",s.toString()).apply();
+            Toast.makeText(this,"تم الحفظ المؤقت ويمكن استعادته لاحقًا",Toast.LENGTH_SHORT).show();
+        }catch(Exception e){Toast.makeText(this,"تعذر الحفظ المؤقت",Toast.LENGTH_SHORT).show();}
+    }
+    void restoreInvoiceDraft(TextView no,AutoCompleteTextView customer,EditText paid,ArrayList<Line> lines,Runnable refresh){
+        try{
+            String s=getSharedPreferences("draft",MODE_PRIVATE).getString("invoice","");
+            if(s.isEmpty()){Toast.makeText(this,"لا يوجد حفظ مؤقت",Toast.LENGTH_SHORT).show();return;}
+            String[] a=s.split("\n",-1);
+            if(a.length<3)throw new Exception();
+            no.setText(unb64(a[0]));customer.setText(unb64(a[1]));paid.setText(unb64(a[2]));
+            lines.clear();
+            for(int i=3;i<a.length;i++){
+                if(a[i].trim().isEmpty())continue;
+                String[] p=a[i].split("\t",-1);
+                if(p.length>=3)lines.add(new Line(unb64(p[0]),Double.parseDouble(p[1]),Double.parseDouble(p[2])));
+            }
+            refresh.run();Toast.makeText(this,"تم استعادة الحفظ المؤقت",Toast.LENGTH_SHORT).show();
+        }catch(Exception e){Toast.makeText(this,"الحفظ المؤقت غير صالح",Toast.LENGTH_SHORT).show();}
+    }
+    void clearInvoiceDraft(){getSharedPreferences("draft",MODE_PRIVATE).edit().remove("invoice").apply();}
+    File appDownloadDir(){
+        File d=new File(getExternalFilesDir(null),"بقالة العزيز خاص"); if(!d.exists())d.mkdirs(); return d;
+    }
+    Uri saveReceiptImage(String no,String customer,ArrayList<Line> lines,double total){
+        try{
+            Bitmap b=receiptBitmap(receiptTextFromLines(no,customer,lines,total,-1));
+            String fn="فاتورة_"+no+"_"+new SimpleDateFormat("yyyyMMdd_HHmmss",Locale.US).format(new Date())+".png";
+            if(Build.VERSION.SDK_INT>=29){
+                ContentValues v=new ContentValues();v.put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME,fn);v.put(android.provider.MediaStore.MediaColumns.MIME_TYPE,"image/png");v.put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH,"Download/بقالة العزيز خاص");
+                Uri u=getContentResolver().insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,v);if(u==null)throw new Exception();
+                try(OutputStream out=getContentResolver().openOutputStream(u)){b.compress(Bitmap.CompressFormat.PNG,100,out);}
+                Toast.makeText(this,"تم حفظ صورة الفاتورة في Download/بقالة العزيز خاص",Toast.LENGTH_SHORT).show(); return u;
+            }else{
+                File f=new File(appDownloadDir(),fn);try(FileOutputStream out=new FileOutputStream(f)){b.compress(Bitmap.CompressFormat.PNG,100,out);}
+                return Uri.fromFile(f);
+            }
+        }catch(Exception e){Toast.makeText(this,"تعذر حفظ صورة الفاتورة",Toast.LENGTH_SHORT).show();return null;}
+    }
+    void saveAccountStatementImage(long id,String name){
+        try{
+            String s=statement(id,name);Bitmap b=receiptBitmap(s);
+            String fn="كشف_"+name.replaceAll("[\\/:*?\"<>|]","_")+"_"+new SimpleDateFormat("yyyyMMdd_HHmmss",Locale.US).format(new Date())+".png";
+            if(Build.VERSION.SDK_INT>=29){
+                ContentValues v=new ContentValues();v.put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME,fn);v.put(android.provider.MediaStore.MediaColumns.MIME_TYPE,"image/png");v.put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH,"Download/بقالة العزيز خاص");
+                Uri u=getContentResolver().insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,v);if(u==null)throw new Exception();
+                try(OutputStream out=getContentResolver().openOutputStream(u)){b.compress(Bitmap.CompressFormat.PNG,100,out);}
+            }else{File f=new File(appDownloadDir(),fn);try(FileOutputStream out=new FileOutputStream(f)){b.compress(Bitmap.CompressFormat.PNG,100,out);}}
+            Toast.makeText(this,"تم حفظ صورة كشف الحساب في مجلد بقالة العزيز خاص",Toast.LENGTH_SHORT).show();
+        }catch(Exception e){Toast.makeText(this,"تعذر حفظ صورة كشف الحساب",Toast.LENGTH_SHORT).show();}
+    }
+    static void restoreDatabaseFromUri(Context c,Uri uri){
+        DB helper=new DB(c);helper.close();
+        File target=c.getDatabasePath("enezi.db");File tmp=new File(c.getCacheDir(),"restore_enezi.db");
+        try{
+            try(InputStream in=c.getContentResolver().openInputStream(uri);OutputStream out=new FileOutputStream(tmp)){
+                if(in==null)throw new Exception("null");byte[] buf=new byte[8192];int n;while((n=in.read(buf))>0)out.write(buf,0,n);
+            }
+            if(target.exists())target.delete();File wal=new File(target.getPath()+"-wal"),shm=new File(target.getPath()+"-shm");if(wal.exists())wal.delete();if(shm.exists())shm.delete();
+            if(!tmp.renameTo(target)){try(InputStream in=new java.io.FileInputStream(tmp);OutputStream out=new FileOutputStream(target)){byte[] buf=new byte[8192];int n;while((n=in.read(buf))>0)out.write(buf,0,n);}}
+            tmp.delete();new DB(c).close();
+        }catch(Exception e){throw new RuntimeException(e);}
+    }
+    void showBackupRestore(){
+        new AlertDialog.Builder(this).setTitle("النسخ الاحتياطي والاسترجاع")
+            .setMessage("يتم حفظ نسخة يومية الساعة 11:59 مساءً داخل Download/بقالة العزيز خاص. يمكنك اختيار ملف نسخة احتياطية لاسترجاعه.")
+            .setPositiveButton("استرجاع نسخة", (d,w)->{Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("*/*");i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,8801);})
+            .setNegativeButton("إغلاق",null).show();
+    }
+    @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
+        super.onActivityResult(requestCode,resultCode,data);
+        if(requestCode==8801&&resultCode==RESULT_OK&&data!=null&&data.getData()!=null){
+            try{restoreDatabaseFromUri(this,data.getData());db=new DB(this);Toast.makeText(this,"تم استرجاع النسخة الاحتياطية. أعد فتح الشاشة الحالية.",Toast.LENGTH_LONG).show();home();}
+            catch(Exception e){Toast.makeText(this,"تعذر استرجاع النسخة الاحتياطية: "+e.getMessage(),Toast.LENGTH_LONG).show();}
+        }
+    }
+
     void notifyNewOperation(String title,String text){
         try{
             if(android.os.Build.VERSION.SDK_INT>=33 && checkSelfPermission("android.permission.POST_NOTIFICATIONS")!=android.content.pm.PackageManager.PERMISSION_GRANTED){
@@ -869,7 +964,7 @@ public class MainActivity extends Activity {
         EditText amount=numberField("المبلغ"),details=field("التفاصيل");addField(amount);addField(details);
         LinearLayout acts=new LinearLayout(this);acts.setOrientation(LinearLayout.HORIZONTAL);Button debit=button("عليه"),credit=button("له / دفعة");debit.setTextColor(Color.RED);credit.setTextColor(GREEN);
         acts.addView(debit,new LinearLayout.LayoutParams(0,dp(40),1));acts.addView(credit,new LinearLayout.LayoutParams(0,dp(40),1));content.addView(acts);addSpace(6);
-        Button sharePdf=button("📄 كشف الحساب PDF + واتساب");sharePdf.setTextColor(GREEN);content.addView(sharePdf,new LinearLayout.LayoutParams(-1,dp(42)));sharePdf.setOnClickListener(v->shareAccountPdfToWhatsApp(id,name));
+        Button saveAccountImage=button("🖼 حفظ صورة كشف الحساب");saveAccountImage.setTextColor(GREEN);content.addView(saveAccountImage,new LinearLayout.LayoutParams(-1,dp(40)));saveAccountImage.setOnClickListener(v->saveAccountStatementImage(id,name)); addSpace(3); Button sharePdf=button("📄 كشف الحساب PDF + واتساب");sharePdf.setTextColor(GREEN);content.addView(sharePdf,new LinearLayout.LayoutParams(-1,dp(42)));sharePdf.setOnClickListener(v->shareAccountPdfToWhatsApp(id,name));
         section("سجل العمليات");
         LinearLayout selectedActions=new LinearLayout(this);selectedActions.setOrientation(LinearLayout.HORIZONTAL);Button shareSelected=button("📤 مشاركة المحدد"),printSelected=button("🖨 طباعة المحدد");shareSelected.setTextColor(GREEN);printSelected.setTextColor(GREEN);
         selectedActions.addView(shareSelected,new LinearLayout.LayoutParams(0,dp(40),1));selectedActions.addView(printSelected,new LinearLayout.LayoutParams(0,dp(40),1));content.addView(selectedActions);addSpace(5);
