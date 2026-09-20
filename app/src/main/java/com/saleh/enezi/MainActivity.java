@@ -80,10 +80,11 @@ public class MainActivity extends Activity {
 
     void home(){
         base("الرئيسية");
-        LinearLayout hero=new LinearLayout(this);hero.setOrientation(LinearLayout.VERTICAL);hero.setPadding(18,16,18,16);hero.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{GREEN,DARK}));
+        LinearLayout hero=new LinearLayout(this);hero.setOrientation(LinearLayout.VERTICAL);hero.setPadding(22,18,22,18);hero.setGravity(Gravity.CENTER_VERTICAL);hero.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{GREEN,DARK}));
         TextView h=tv("بقالة العزي",25);h.setTextColor(Color.WHITE);h.setTypeface(Typeface.DEFAULT,Typeface.BOLD);hero.addView(h);
         TextView s=tv("فواتير • حسابات • مخزون • تقارير\nإدارة سريعة تعمل محلياً بدون إنترنت",13);s.setTextColor(Color.WHITE);hero.addView(s);
-        hero.setElevation(3); LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(-1,116); hp.setMargins(0,0,0,10); content.addView(hero,hp);addSpace(10);
+        hero.setElevation(4); LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(-1,142); hp.setMargins(0,0,0,10); content.addView(hero,hp);addSpace(10);
+        Button newInvoice=button("＋  إضافة فاتورة جديدة"); newInvoice.setTextSize(18); newInvoice.setTextColor(Color.WHITE); newInvoice.setTypeface(Typeface.DEFAULT,Typeface.BOLD); newInvoice.setBackground(rounded(GOLD,18)); newInvoice.setOnClickListener(v->invoice()); content.addView(newInvoice,new LinearLayout.LayoutParams(-1,58)); addSpace(14);
         section("اختصارات سريعة");
         addAction("🧾  فاتورة مبيعات جديدة","الإجمالي ← الكمية ← الصنف • حساب سعر الوحدة تلقائياً",v->invoice());
         addAction("👥  العملاء والحسابات","الرصيد، الحركات، كشف الحساب والمشاركة",v->customers());
