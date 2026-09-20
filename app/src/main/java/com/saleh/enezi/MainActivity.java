@@ -23,6 +23,7 @@ import java.io.OutputStream;
 import java.util.Set;
 import java.util.UUID;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.Drawable;
 import android.content.*;
 import android.content.pm.PackageManager;
 import android.provider.ContactsContract;
@@ -477,7 +478,11 @@ public class MainActivity extends Activity {
         int y=124;
         p.setTypeface(Typeface.create("sans",Typeface.NORMAL));p.setTextSize(10);p.setColor(gray);
         for(String line:ls){
-            if(line.equals("بقالة العزي")||line.startsWith("فاتورة مبيعات رقم:")) continue;
+            if(line.equals("بقالة العزي")) continue;
+            if(line.startsWith("فاتورة مبيعات رقم:")){
+                p.setTypeface(Typeface.create("sans",Typeface.NORMAL));p.setTextSize(10);p.setColor(gray);
+                canvas.drawText(line,width/2,y,p);y+=17;continue;
+            }
             if(line.equals("------------------------------")) continue;
             if(line.equals("الصنف | الكمية | الإجمالي")){
                 y+=5;
@@ -491,7 +496,9 @@ public class MainActivity extends Activity {
             if(line.contains(" | ")){
                 String[] q=line.split(" \\| ",-1);
                 if(q.length>=3){
-                    p.setTextAlign(Paint.Align.RIGHT);canvas.drawText(q[0],215,y,p);
+                    String item=q[0].trim();
+                    if(item.length()>17)item=item.substring(0,17)+"…";
+                    p.setTextAlign(Paint.Align.RIGHT);canvas.drawText(item,215,y,p);
                     p.setTextAlign(Paint.Align.CENTER);canvas.drawText(q[1],250,y,p);
                     p.setTextAlign(Paint.Align.RIGHT);canvas.drawText(q[2],365,y,p);
                     p.setTextAlign(Paint.Align.CENTER);y+=lineH;continue;
