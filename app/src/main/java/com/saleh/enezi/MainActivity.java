@@ -164,54 +164,44 @@ public class MainActivity extends Activity {
     void home(){
         base("الرئيسية");
 
-        LinearLayout hero=card(); hero.setPadding(dp(20),dp(16),dp(20),dp(16));
+        LinearLayout hero=card(); hero.setPadding(dp(14),dp(10),dp(14),dp(10));
         hero.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{GREEN,DARK}));
-        TextView h=tv("بقالة العزي",26);h.setTextColor(Color.WHITE);h.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
-        hero.addView(h,new LinearLayout.LayoutParams(-1,dp(34)));
-        TextView hs=tv("المبيعات • حسابات العملاء • المخزون • التقارير\nيعمل محلياً بدون إنترنت ويحفظ بياناتك على الجهاز",14);
-        hs.setTextColor(Color.WHITE);hero.addView(hs,new LinearLayout.LayoutParams(-1,dp(34)));
-        addCard(hero,82);
+        TextView h=tv("بقالة العزي",22);h.setTextColor(Color.WHITE);h.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        h.setGravity(Gravity.CENTER); h.setMaxLines(1); fitInside(h,22f,16f);
+        hero.addView(h,new LinearLayout.LayoutParams(-1,dp(30)));
+        TextView hs=tv("المبيعات • حسابات العملاء • المخزون • التقارير\\nيعمل محلياً بدون إنترنت ويحفظ بياناتك على الجهاز",11);
+        hs.setTextColor(Color.WHITE); hs.setGravity(Gravity.CENTER); hs.setMaxLines(2); fitInside(hs,11f,8f);
+        hero.addView(hs,new LinearLayout.LayoutParams(-1,dp(34)));
+        addCard(hero,70);
 
-        LinearLayout quick=card();
-        quick.addView(tv("إجراء سريع",13),new LinearLayout.LayoutParams(-1,dp(28)));
-        Button ni=action("＋  إضافة فاتورة جديدة",GOLD);ni.setTextSize(18);ni.setOnClickListener(v->invoice());
-        quick.addView(ni,new LinearLayout.LayoutParams(-1,dp(34)));
+        // زر الفاتورة الرئيسي مستقل وواضح، ولا يختفي خلف التبويبات أو البطاقات.
+        LinearLayout quick=card(); quick.setPadding(dp(8),dp(5),dp(8),dp(5));
+        TextView quickTitle=tv("إجراء سريع",10); quickTitle.setTextColor(MUTED); quickTitle.setGravity(Gravity.CENTER); quick.addView(quickTitle,new LinearLayout.LayoutParams(-1,dp(22)));
+        Button ni=action("＋  إنشاء فاتورة جديدة",GOLD); ni.setTextSize(15); ni.setMinHeight(0); ni.setMaxLines(1); ni.setGravity(Gravity.CENTER); fitInside(ni,15f,10f); ni.setOnClickListener(v->invoice());
+        quick.addView(ni,new LinearLayout.LayoutParams(-1,dp(42)));
         addCard(quick,72);
 
         section("الأقسام الرئيسية");
 
-        // بطاقات متجاورة: بطاقتان في كل صف، ثم الصف التالي.
         String[] names={"👥 العملاء والحسابات","🧾 الفواتير","📦 المخزون والأصناف","📊 التقارير"};
         String[] subs={"العملاء، الأرصدة والحركات","سجل الفواتير والتعديل والحذف","الأصناف والكميات والتنبيهات","ملخص المبيعات والحركة"};
-        View.OnClickListener[] actions={
-            v->customers(), v->invoiceHistory(), v->inventory(), v->reports()
-        };
+        View.OnClickListener[] actions={v->customers(),v->invoiceHistory(),v->inventory(),v->reports()};
         for(int i=0;i<names.length;i+=2){
-            LinearLayout row=new LinearLayout(this);
-            row.setOrientation(LinearLayout.HORIZONTAL);
-            row.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+            LinearLayout row=new LinearLayout(this); row.setOrientation(LinearLayout.HORIZONTAL); row.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
             for(int j=i;j<i+2&&j<names.length;j++){
-                LinearLayout c=card();
-                c.setPadding(dp(10),dp(9),dp(10),dp(8));
-                TextView a=tv(names[j],16);a.setTextColor(GREEN);a.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
-                c.addView(a,new LinearLayout.LayoutParams(-1,dp(32)));
-                TextView b=tv(subs[j],11);b.setTextColor(MUTED);
-                c.addView(b,new LinearLayout.LayoutParams(-1,dp(34)));
+                LinearLayout c=card(); c.setPadding(dp(7),dp(6),dp(7),dp(5));
+                TextView a=tv(names[j],13); a.setTextColor(GREEN); a.setTypeface(Typeface.DEFAULT,Typeface.BOLD); a.setGravity(Gravity.CENTER); a.setMaxLines(1); fitInside(a,13f,9f);
+                c.addView(a,new LinearLayout.LayoutParams(-1,dp(28)));
+                TextView b=tv(subs[j],9); b.setTextColor(MUTED); b.setGravity(Gravity.CENTER); b.setMaxLines(2); fitInside(b,9f,7f);
+                c.addView(b,new LinearLayout.LayoutParams(-1,dp(30)));
                 c.setOnClickListener(actions[j]);
-                LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,dp(76),1);
-                if(j==i) cp.setMargins(0,0,dp(5),0); else cp.setMargins(dp(5),0,0,0);
-                row.addView(c,cp);
+                LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,dp(66),1); if(j==i) cp.setMargins(0,0,dp(4),0); else cp.setMargins(dp(4),0,0,0); row.addView(c,cp);
             }
-            content.addView(row,new LinearLayout.LayoutParams(-1,dp(76)));
-            addSpace(8);
+            content.addView(row,new LinearLayout.LayoutParams(-1,dp(66))); addSpace(5);
         }
 
-        // زر عام صغير يفتح أهم العمليات من أي وقت في الشاشة الرئيسية.
-        Button general=button("＋  زر عام: إضافة عملية");
-        general.setTextColor(GREEN);general.setTextSize(14);general.setBackground(outline(CARD,14));
-        general.setOnClickListener(v->showGeneralActions());
-        content.addView(general,new LinearLayout.LayoutParams(-1,dp(40)));
-        addSpace(8);
+        Button general=button("＋  إضافة عملية"); general.setTextColor(GREEN); general.setTextSize(12); general.setMaxLines(1); general.setGravity(Gravity.CENTER); general.setBackground(outline(CARD,12)); fitInside(general,12f,9f);
+        general.setOnClickListener(v->showGeneralActions()); content.addView(general,new LinearLayout.LayoutParams(-1,dp(36))); addSpace(5);
     }
 
     void showGeneralActions(){
