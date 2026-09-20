@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
         TextView pt=tv(title,15); pt.setTextColor(Color.WHITE); pt.setGravity(Gravity.CENTER); bar.addView(pt,new LinearLayout.LayoutParams(dp(100),dp(36))); root.addView(bar);
         ScrollView sv=new ScrollView(this); sv.setFillViewport(true); sv.setClipToPadding(false);
         content=new LinearLayout(this); content.setOrientation(LinearLayout.VERTICAL); content.setPadding(dp(7),dp(4),dp(7),dp(8)); content.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-        TextView operationChip=tv("العملية الحالية: "+title,10); operationChip.setTextColor(GREEN); operationChip.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL); operationChip.setSingleLine(true); operationChip.setEllipsize(TextUtils.TruncateAt.END); operationChip.setPadding(dp(8),0,dp(8),0); operationChip.setBackground(outline(Color.rgb(241,247,242),1,8)); content.addView(operationChip,new LinearLayout.LayoutParams(-1,dp(24))); addSpace(3);
+        TextView operationChip=tv("العملية الحالية: "+title,10); operationChip.setTextColor(GREEN); operationChip.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL); operationChip.setSingleLine(true); operationChip.setEllipsize(TextUtils.TruncateAt.END); operationChip.setPadding(dp(8),0,dp(8),0); operationChip.setBackground(outline(Color.rgb(241,247,242),8)); content.addView(operationChip,new LinearLayout.LayoutParams(-1,dp(24))); addSpace(3);
         sv.addView(content); root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));
         bottom=new LinearLayout(this); bottom.setGravity(Gravity.CENTER); bottom.setPadding(dp(2),dp(2),dp(2),dp(2)); bottom.setBackground(outlined(CARD,1,20)); bottom.setElevation(8);
         String[] ns={"الرئيسية","العملاء","الفواتير","المخزون","التقارير"};
@@ -399,12 +399,12 @@ public class MainActivity extends Activity {
         TextView qty=tv(fmt(l.qty),13);qty.setGravity(Gravity.CENTER);qty.setSingleLine(true);
         TextView item=tv(l.name,12);item.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);item.setMaxLines(2);item.setEllipsize(TextUtils.TruncateAt.END);
         TextView unit=tv(fmt(l.total/l.qty),12);unit.setTextColor(MUTED);unit.setGravity(Gravity.CENTER);unit.setSingleLine(true);
-        Button del=button("حذف");del.setTextSize(10);del.setTextColor(Color.RED);del.setBackgroundColor(Color.TRANSPARENT); qty.setContentDescription("تعديل كمية الصنف"); qty.setBackground(outline(Color.rgb(248,250,248),1,6));
+        Button del=button("حذف");del.setTextSize(10);del.setTextColor(Color.RED);del.setBackgroundColor(Color.TRANSPARENT); qty.setContentDescription("تعديل كمية الصنف"); qty.setBackground(outline(Color.rgb(248,250,248),6));
         View[] cells={total,qty,item,unit,del};for(int i=0;i<cells.length;i++)r.addView(cells[i],new LinearLayout.LayoutParams(0,dp(36),w[i]));
         qty.setOnClickListener(v->editLineQuantity(l,parent,all,baseBal)); del.setOnClickListener(v->{all.remove(l);redrawInvoiceRows(parent,all,baseBal);});parent.addView(r,new LinearLayout.LayoutParams(-1,dp(36)));
     }
     void editLineQuantity(Line line,LinearLayout parent,ArrayList<Line> all,double baseBal){
-        EditText q=numberField("الكمية");q.setText(fmt(line.qty));q.selectAllOnFocus();
+        EditText q=numberField("الكمية");q.setText(fmt(line.qty));q.setSelectAllOnFocus(true);
         LinearLayout box=new LinearLayout(this);box.setPadding(dp(8),dp(4),dp(8),dp(2));box.addView(q,new LinearLayout.LayoutParams(-1,dp(42)));
         new AlertDialog.Builder(this).setTitle("تعديل كمية الصنف").setMessage(line.name+" — الكمية الحالية: "+fmt(line.qty)).setView(box)
             .setNegativeButton("إلغاء",null).setPositiveButton("حفظ",(d,w)->{try{double value=Double.parseDouble(q.getText().toString().trim());if(value<=0)throw new Exception();line.qty=value;redrawInvoiceRows(parent,all,baseBal);}catch(Exception e){Toast.makeText(this,"أدخل كمية صحيحة",Toast.LENGTH_SHORT).show();}}).show();
