@@ -530,20 +530,16 @@ public class MainActivity extends Activity {
     }
     String receiptTextFromLines(String no,String customer,ArrayList<Line> lines,double total,long cid,double balanceAfter){
         StringBuilder s=new StringBuilder();
-        s.append("بقالة العزي\n");
-        s.append("فاتورة مبيعات رقم: ").append(no).append("\n");
-        s.append("التاريخ: ").append(db.now()).append("\n");
-        if(!customer.trim().isEmpty())s.append("العميل: ").append(customer.trim()).append("\n");
-        s.append("------------------------------\n");
-        s.append("الصنف | الكمية | الإجمالي\n");
+        s.append("بقالة العزي\nفاتورة ").append(no).append("\n");
+        if(customer!=null&&!customer.trim().isEmpty())s.append("العميل: ").append(customer.trim()).append("\n");
+        s.append("التاريخ: ").append(db.now()).append("\n\n");
         for(Line l:lines){
             String n=l.name==null?"":l.name.trim();
-            s.append(n).append(" | ").append(fmt(l.qty)).append(" | ").append(fmt(l.total)).append("\n");
+            s.append(n).append(" × ").append(fmt(l.qty)).append(" = ").append(fmt(l.total)).append(" ريال\n");
         }
-        s.append("------------------------------\n");
-        s.append("الإجمالي: ").append(fmt(total)).append(" ريال\n");
-        if(cid>0 && Math.abs(balanceAfter)>=0.005){if(balanceAfter>0)s.append("رصيدكم عليكم: ").append(fmt(balanceAfter)).append(" ريال\n");else s.append("رصيدكم لكم: ").append(fmt(Math.abs(balanceAfter))).append(" ريال\n");}
-        s.append("شكراً لتعاملكم معنا");
+        s.append("\nالإجمالي: ").append(fmt(total)).append(" ريال\n");
+        if(cid>0&&Math.abs(balanceAfter)>=0.005)s.append(balanceAfter>0?"عليه: ":"له: ").append(fmt(Math.abs(balanceAfter))).append(" ريال\n");
+        s.append("شكراً لتعاملكم");
         return s.toString();
     }
 
@@ -623,14 +619,14 @@ public class MainActivity extends Activity {
         File dir=new File(getCacheDir(),"pdf");if(!dir.exists())dir.mkdirs();File file=new File(dir,prefix+"_"+System.currentTimeMillis()+".pdf");
         android.graphics.pdf.PdfDocument pdf=new android.graphics.pdf.PdfDocument();
         final int pageW=595,pageH=842,margin=42,contentW=pageW-(margin*2);
-        TextPaint paint=new TextPaint(Paint.ANTI_ALIAS_FLAG);paint.setColor(Color.BLACK);paint.setTextSize(dp(11));paint.setTypeface(Typeface.create("sans",Typeface.NORMAL));
+        TextPaint paint=new TextPaint(Paint.ANTI_ALIAS_FLAG);paint.setColor(Color.BLACK);paint.setTextSize(dp(10));paint.setTypeface(Typeface.create("sans",Typeface.NORMAL));
         int pageNo=1;android.graphics.pdf.PdfDocument.Page page=null;Canvas canvas=null;int y=margin;
         try{
             for(String line:text.split("\\n",-1)){
                 String safe=line==null?"":line;
                 if(page==null){page=pdf.startPage(new android.graphics.pdf.PdfDocument.PageInfo.Builder(pageW,pageH,pageNo).create());canvas=page.getCanvas();y=margin;}
                 StaticLayout layout;
-                if(Build.VERSION.SDK_INT>=23) layout=StaticLayout.Builder.obtain(safe,0,safe.length(),paint,contentW).setAlignment(Layout.Alignment.ALIGN_OPPOSITE).setIncludePad(true).setLineSpacing(1.5f,1.0f).setTextDirection(android.text.TextDirectionHeuristics.RTL).build();
+                if(Build.VERSION.SDK_INT>=23) layout=StaticLayout.Builder.obtain(safe,0,safe.length(),paint,contentW).setAlignment(Layout.Alignment.ALIGN_OPPOSITE).setIncludePad(false).setLineSpacing(1.0f,0.0f).setTextDirection(android.text.TextDirectionHeuristics.RTL).build();
                 else layout=new StaticLayout(safe,paint,contentW,Layout.Alignment.ALIGN_OPPOSITE,1.0f,2,true);
                 if(y+layout.getHeight()>pageH-margin){pdf.finishPage(page);pageNo++;page=pdf.startPage(new android.graphics.pdf.PdfDocument.PageInfo.Builder(pageW,pageH,pageNo).create());canvas=page.getCanvas();y=margin;}
                 canvas.save();canvas.translate(margin,y);layout.draw(canvas);canvas.restore();y+=layout.getHeight()+5;
@@ -640,11 +636,15 @@ public class MainActivity extends Activity {
     }
     void shareAccountPdfToWhatsApp(long id,String name){
         try{
-            File file=createA4Pdf(statement(id,name),"كشف_حساب_"+id);Uri uri=FileProvider.getUriForFile(this,getPackageName()+".fileprovider",file);
-            Intent i=new Intent(Intent.ACTION_SEND);i.setType("application/pdf");i.putExtra(Intent.EXTRA_STREAM,uri);i.putExtra(Intent.EXTRA_TEXT,"كشف حساب العميل: "+name);i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            File file=createA4Pdf(statement(id,name),"كشف_حساب_"+id);
+            Uri uri=FileProvider.getUriForFile(this,getPackageName()+".fileprovider",file);
+            Intent i=new Intent(Intent.ACTION_SEND);i.setType("application/pdf");
+            i.putExtra(Intent.EXTRA_STREAM,uri);
+            i.putExtra(Intent.EXTRA_TEXT,"كشف حساب "+name);
+            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             String p=normalizeWhatsAppPhone(db.phoneByName(name));if(!p.isEmpty())i.putExtra("jid",p+"@s.whatsapp.net");
             try{i.setPackage("com.whatsapp");startActivity(i);}catch(Exception e){i.setPackage(null);startActivity(Intent.createChooser(i,"مشاركة كشف الحساب PDF"));}
-        }catch(Exception e){Toast.makeText(this,"تعذر إنشاء ملف PDF صالح للطباعة",Toast.LENGTH_LONG).show();}
+        }catch(Exception e){Toast.makeText(this,"تعذر إنشاء كشف الحساب PDF",Toast.LENGTH_LONG).show();}
     }
 
     void shareText(String s){Intent i=new Intent(Intent.ACTION_SEND);i.setType("text/plain");i.putExtra(Intent.EXTRA_TEXT,s);startActivity(Intent.createChooser(i,"إرسال الفاتورة"));}
@@ -928,27 +928,59 @@ public class MainActivity extends Activity {
         }).setNegativeButton("إلغاء",null).show();
     }
 
+    String compactOperationText(String customer,String details,double amount,int type,String invNo){
+        StringBuilder t=new StringBuilder();
+        t.append("بقالة العزي\nعملية حسابية\n");
+        t.append("العميل: ").append(customer==null||customer.trim().isEmpty()?"نقدي":customer.trim()).append("\n");
+        if(invNo!=null&&!invNo.isEmpty())t.append("الفاتورة: ").append(invNo).append("\n");
+        if(details!=null&&!details.trim().isEmpty()&&!details.startsWith("فاتورة مبيعات رقم "))t.append("البيان: ").append(details.trim()).append("\n");
+        t.append("المبلغ: ").append(type==1?"عليه ":"له ").append(fmt(amount)).append(" ريال\n");
+        t.append("الرصيد الحالي: ").append(balanceText(db.balanceByName(customer))).append("\n");
+        t.append("التاريخ: ").append(db.now());
+        return t.toString();
+    }
     void shareOperation(String customer,String details,double amount,int type,String invNo){
-        StringBuilder text=new StringBuilder();
-        text.append("بقالة العزي\nبيانات العملية\n");
-        text.append("العميل: ").append(customer).append("\n");
-        text.append("التاريخ والوقت: ").append(db.now()).append("\n");
-        text.append("رقم الفاتورة: ").append(invNo==null||invNo.isEmpty()?"—":invNo).append("\n");
-        text.append("التفاصيل: ").append(details==null||details.trim().isEmpty()?"عملية مالية":details).append("\n");
-        text.append("المبلغ: ").append(type==1?"عليه: ":"له: ").append(fmt(amount)).append(" ريال\n");
-        text.append("الرصيد الحالي: ").append(balanceText(db.balanceByName(customer))).append("\n");
-        text.append("────────────────────");
-        shareWhatsAppToCustomer(db.phoneByName(customer),text.toString(),null);
+        shareWhatsAppToCustomer(db.phoneByName(customer),compactOperationText(customer,details,amount,type,invNo),null);
     }
 
     void shareOperationImage(String customer,String details,double amount,int type,String invNo){
         try{
-            ArrayList<Line> ls=new ArrayList<>();
-            if(!invNo.isEmpty()){long iid=db.invoiceIdByNo(invNo);if(iid>0){Cursor c=db.invoiceLines(iid);while(c.moveToNext())ls.add(new Line(c.getString(1),c.getDouble(2),c.getDouble(3)));c.close();}}
-            String text=!ls.isEmpty()?receiptTextFromLines(invNo,customer,ls,totalOf(ls),db.customer(customer)):
-                "بقالة العزي\\nعملية مالية\\nالعميل: "+customer+"\\n"+(details==null?"":details)+"\\n"+(type==1?"عليه: ":"له: ")+fmt(amount)+" ريال\\n"+balanceText(db.balanceByName(customer));
-            Uri uri=saveReceiptBitmap(receiptBitmap(text),invNo.isEmpty()?String.valueOf(System.currentTimeMillis()):invNo);shareWhatsAppToCustomer(db.phoneByName(customer),text,uri);
+            String text=compactOperationText(customer,details,amount,type,invNo);
+            Uri uri=saveReceiptBitmap(operationBitmap(text),invNo==null||invNo.isEmpty()?String.valueOf(System.currentTimeMillis()):"عملية_"+invNo);
+            shareWhatsAppToCustomer(db.phoneByName(customer),text,uri);
         }catch(Exception e){shareOperation(customer,details,amount,type,invNo);}
+    }
+
+    Bitmap operationBitmap(String text){
+        final int width=384,margin=20;
+        Bitmap b=Bitmap.createBitmap(width,360,Bitmap.Config.ARGB_8888);
+        Canvas c=new Canvas(b);c.drawColor(Color.WHITE);
+        Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);p.setTextAlign(Paint.Align.CENTER);
+        p.setTypeface(Typeface.create("sans",Typeface.BOLD));p.setTextSize(19);p.setColor(GREEN);
+        c.drawText("بقالة العزي",width/2,42,p);
+        p.setTypeface(Typeface.create("sans",Typeface.BOLD));p.setTextSize(14);p.setColor(Color.BLACK);
+        c.drawText("بيان عملية",width/2,66,p);
+        p.setTypeface(Typeface.create("sans",Typeface.NORMAL));p.setTextSize(11);p.setTextAlign(Paint.Align.RIGHT);
+        int y=94;
+        for(String line:text.split("\\n",-1)){
+            if(line.startsWith("بقالة العزي")||line.equals("عملية حسابية"))continue;
+            if(y>325)break;
+            c.drawText(line,width-margin,y,p);y+=23;
+        }
+        p.setColor(Color.rgb(24,112,61));c.drawLine(margin,y,width-margin,y,p);
+        return b;
+    }
+
+    void shareSelectedTransactions(long customerId,String name,ArrayList<Long> ids){
+        StringBuilder text=new StringBuilder("بقالة العزي\nكشف عمليات\nالعميل: ").append(name).append("\n");
+        double debit=0,credit=0;
+        for(Long tid:ids){Cursor c=db.transactionById(tid);if(c.moveToFirst()){String d=c.getString(3);double a=c.getDouble(4);int t=c.getInt(5);
+            text.append(c.getString(2)).append(" • ").append(t==1?"عليه ":"له ").append(fmt(a)).append(" ريال");
+            if(d!=null&&!d.trim().isEmpty())text.append(" • ").append(d.trim());
+            text.append("\n");if(t==1)debit+=a;else credit+=a;}c.close();}
+        text.append("\nعليه: ").append(fmt(debit)).append(" ريال • له: ").append(fmt(credit)).append(" ريال");
+        text.append("\nالرصيد الحالي: ").append(balanceText(db.balance(customerId)));
+        shareWhatsAppToCustomer(db.phoneByName(name),text.toString(),null);
     }
 
     void shareSelectedTransactions(long customerId,String name,ArrayList<Long> ids){
@@ -992,17 +1024,26 @@ public class MainActivity extends Activity {
     }
     String statement(long id,String name){
         StringBuilder s=new StringBuilder();
-        s.append("بقالة العزي\nكشف حساب العميل\nالعميل: ").append(name).append("\nتاريخ الكشف: ").append(db.now()).append("\n");
-        s.append("--------------------------------\nالتاريخ والوقت | رقم الفاتورة | التفاصيل | المبلغ | الرصيد\n--------------------------------\n");
-        double runningAfter=db.balance(id),totalDebit=0,totalCredit=0;Cursor c=db.transactions(id);
+        s.append("بقالة العزي\nكشف حساب\n");
+        s.append("العميل: ").append(name).append("\n");
+        s.append("التاريخ: ").append(db.now()).append("\n\n");
+        double running=db.balance(id),debit=0,credit=0;Cursor c=db.transactions(id);
         while(c.moveToNext()){
-            String d=c.getString(1),x=c.getString(2);double a=c.getDouble(3);int t=c.getInt(4);if(t==1)totalDebit+=a;else totalCredit+=a;
-            String inv=db.invoiceNoFromTransaction(x);
-            s.append(d).append(" | ").append(inv.isEmpty()?"—":inv).append(" | ").append(x==null||x.trim().isEmpty()?"عملية مالية":x).append(" | ").append(t==1?"عليه: ":"له: ").append(fmt(a)).append(" ريال | ").append(balanceText(runningAfter)).append("\n");
-            if(!inv.isEmpty())s.append("تفاصيل الفاتورة: ").append(db.invoiceCompactDetails(inv)).append("\n");
-            runningAfter-=(t==1?a:-a);
+            String date=c.getString(1),details=c.getString(2);double amount=c.getDouble(3);int type=c.getInt(4);
+            if(type==1)debit+=amount;else credit+=amount;
+            String inv=db.invoiceNoFromTransaction(details);
+            s.append(date).append("\n");
+            s.append(type==1?"عليه: ":"له: ").append(fmt(amount)).append(" ريال");
+            if(!inv.isEmpty())s.append(" • فاتورة ").append(inv);
+            s.append("\n");
+            if(details!=null&&!details.trim().isEmpty())s.append(details.trim()).append("\n");
+            s.append("الرصيد بعد العملية: ").append(balanceText(running)).append("\n\n");
+            running-=(type==1?amount:-amount);
         }c.close();
-        s.append("--------------------------------\nإجمالي عليه: ").append(fmt(totalDebit)).append(" ريال\nإجمالي له: ").append(fmt(totalCredit)).append(" ريال\nالرصيد الحالي: ").append(balanceText(db.balance(id)));
+        s.append("ــــــــــــــــــــ\n");
+        s.append("إجمالي عليه: ").append(fmt(debit)).append(" ريال\n");
+        s.append("إجمالي له: ").append(fmt(credit)).append(" ريال\n");
+        s.append("الرصيد الحالي: ").append(balanceText(db.balance(id)));
         return s.toString();
     }
 
