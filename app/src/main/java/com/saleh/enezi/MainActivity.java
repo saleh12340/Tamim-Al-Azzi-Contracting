@@ -1064,23 +1064,173 @@ public class MainActivity extends Activity {
         refresh[0].run();
     }
     void reports(){
-        base("التقارير");section("ملخص سريع");
+        base("التقارير");
+        section("ملخص التقارير والحركة");
+
         try{
-            cardTitle("المبيعات","عدد الفواتير: "+db.invoiceCount()+"   •   إجمالي المبيعات: "+fmt(db.sales())+" ريال");
-            cardTitle("العملاء","عدد العملاء: "+db.customerCount());
-            section("كل الفواتير والعمليات — الأحدث أولاً");
+            LinearLayout summary=card();
+            summary.setPadding(dp(7),dp(3),dp(7),dp(3));
+            TextView s=tv("الفواتير: "+db.invoiceCount()+"   •   المبيعات: "+fmt(db.sales())+" ريال   •   العملاء: "+db.customerCount(),11);
+            s.setGravity(Gravity.CENTER);
+            summary.addView(s,new LinearLayout.LayoutParams(-1,dp(34)));
+            addCard(summary,50);
+
+            section("جميع حركات التطبيق — الأحدث أولاً");
+            TextView hint=tv("اضغط على أي حركة لعرض كامل بياناتها • الفاتورة تظهر بحجم أكبر",10);
+            hint.setTextColor(MUTED);hint.setGravity(Gravity.CENTER);
+            content.addView(hint,new LinearLayout.LayoutParams(-1,dp(24)));addSpace(2);
+
             Cursor c=db.recentActivity();
             while(c.moveToNext()){
-                String title=c.getString(2),date=c.getString(4);double amount=c.getDouble(3);
-                LinearLayout r=card(); r.setPadding(dp(8),dp(3),dp(8),dp(3));
-                TextView v=tv(title+"\n"+fmt(amount)+" ريال  •  "+(date==null?"":date),11);v.setMaxLines(3);v.setEllipsize(null);
-                r.addView(v,new LinearLayout.LayoutParams(-1,dp(42)));content.addView(r,new LinearLayout.LayoutParams(-1,dp(46)));addSpace(2);
+                int kind=c.getInt(0);
+                String ref=c.getString(1);
+                String title=c.getString(2);
+                double amount=c.getDouble(3);
+                String date=c.getString(4);
+                long sortId=c.getLong(5);
+
+                final int fk=kind;
+                final String fr=ref==null?"":ref;
+                final String ft=title==null?"":title;
+                final double fa=amount;
+                final String fd=date==null?"":date;
+                final long fid=sortId;
+
+                LinearLayout row=card();
+                row.setPadding(dp(7),dp(kind==1?5:3),dp(7),dp(kind==1?5:3));
+                row.setElevation(dp(1));
+
+                String label=kind==1?"🧾 فاتورة":"عملية";
+                String shortTitle=ft;
+                TextView main=tv(label+"  •  "+shortTitle,kind==1?13:11);
+                main.setTextColor(kind==1?GREEN:TEXT);
+                main.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+                main.setMaxLines(2);main.setEllipsize(null);
+                row.addView(main,new LinearLayout.LayoutParams(-1,dp(kind==1?34:28)));
+
+                TextView meta=tv(fmt(fa)+" ريال  •  "+fd,10);
+                meta.setTextColor(MUTED);meta.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
+                meta.setMaxLines(1);meta.setEllipsize(null);
+                row.addView(meta,new LinearLayout.LayoutParams(-1,dp(22)));
+
+                row.setOnClickListener(v->showReportActivityDetails(fk,fr,ft,fa,fd,fid));
+                if(kind==1){
+                    row.setBackground(outlined(Color.rgb(250,253,250),1,12));
+                    content.addView(row,new LinearLayout.LayoutParams(-1,dp(66)));
+                }else{
+                    row.setBackground(outlined(CARD,1,9));
+                    content.addView(row,new LinearLayout.LayoutParams(-1,dp(52)));
+                }
+                addSpace(2);
             }
             c.close();
         }catch(Exception e){
-            TextView err=tv("تعذر تحميل بعض بيانات التقارير. تم الحفاظ على البيانات.",12);err.setTextColor(Color.rgb(170,75,35));
-            content.addView(err,new LinearLayout.LayoutParams(-1,dp(48)));
+            TextView err=tv("تعذر تحميل سجل الحركات. يمكنك الاستمرار باستخدام بقية الشاشات.",11);
+            err.setTextColor(Color.rgb(170,75,35));
+            content.addView(err,new LinearLayout.LayoutParams(-1,dp(44)));
         }
+    }
+
+    void showReportActivityDetails(int kind,String ref,String title,double amount,String date,long sortId){
+        try{
+            LinearLayout box=new LinearLayout(this);
+            box.setOrientation(LinearLayout.VERTICAL);
+            box.setPadding(dp(8),dp(4),dp(8),dp(4));
+
+            if(kind==1){
+                long invoiceId=db.invoiceIdByNo(ref);
+                if(invoiceId>0){
+                    String customer=db.invoiceCustomer(invoiceId);
+                    double total=db.invoiceTotal(invoiceId);
+                    double paid=db.invoicePaid(invoiceId);
+                    String invoiceDate=db.invoiceDate(invoiceId);
+                    long cid=customer==null||customer.trim().isEmpty()?-1:db.customerIdByName(customer.trim());
+                    long tid=db.transactionIdForInvoice(ref);
+                    double balanceAfter=tid>0?db.balanceAfterTransaction(tid):(cid>0?db.balance(cid):0);
+
+                    TextView head=tv("فاتورة رقم "+ref,16);
+                    head.setTextColor(GREEN);head.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+                    head.setGravity(Gravity.CENTER);
+                    box.addView(head,new LinearLayout.LayoutParams(-1,dp(34)));
+
+                    box.addView(detailLine("العميل",customer==null||customer.isEmpty()?"نقدي":customer));
+                    box.addView(detailLine("التاريخ والوقت",invoiceDate==null||invoiceDate.isEmpty()?date:invoiceDate));
+                    box.addView(detailLine("المبلغ الإجمالي",fmt(total)+" ريال"));
+                    box.addView(detailLine("المبلغ المدفوع",fmt(paid)+" ريال"));
+                    box.addView(detailLine("المتبقي",fmt(Math.max(0,total-paid))+" ريال"));
+                    box.addView(detailLine("الرصيد بعد العملية",balanceText(balanceAfter)));
+
+                    sectionInside(box,"أصناف الفاتورة");
+                    Cursor lines=db.invoiceLines(invoiceId);
+                    int count=0;
+                    while(lines.moveToNext()){
+                        String n=lines.getString(1);
+                        double q=lines.getDouble(2),t=lines.getDouble(3);
+                        TextView lr=tv(n+"   × "+fmt(q)+"   = "+fmt(t)+" ريال",11);
+                        lr.setBackground(outline(Color.rgb(248,250,248),7));
+                        lr.setMaxLines(2);lr.setEllipsize(null);
+                        box.addView(lr,new LinearLayout.LayoutParams(-1,dp(30)));
+                        spaceInside(box,2);count++;
+                    }
+                    lines.close();
+                    if(count==0) box.addView(detailLine("الأصناف","لا توجد تفاصيل محفوظة"));
+
+                    new AlertDialog.Builder(this).setTitle("تفاصيل الفاتورة").setView(box)
+                        .setPositiveButton("إغلاق",null).show();
+                    return;
+                }
+            }
+
+            long tid=kind==2?sortId:-1;
+            if(tid>0){
+                Cursor tc=db.transactionById(tid);
+                if(tc.moveToFirst()){
+                    long customerId=tc.getLong(1);
+                    String tdate=tc.getString(2);
+                    String details=tc.getString(3);
+                    double ta=tc.getDouble(4);
+                    int type=tc.getInt(5);
+
+                    String customerName=db.customerNameById(customerId);
+                    double after=db.balanceAfterTransaction(tid);
+
+                    TextView head=tv("تفاصيل العملية",15);
+                    head.setTextColor(GREEN);head.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+                    head.setGravity(Gravity.CENTER);
+                    box.addView(head,new LinearLayout.LayoutParams(-1,dp(32)));
+                    box.addView(detailLine("من الحساب",type==1?"المحل / المبيعات":"العميل"));
+                    box.addView(detailLine("إلى الحساب",type==1?(customerName==null?"العميل":customerName):"المحل / الدفعات"));
+                    box.addView(detailLine("العميل",customerName==null?"":customerName));
+                    box.addView(detailLine("نوع العملية",type==1?"عليه":"له / دفعة"));
+                    box.addView(detailLine("التفاصيل",details==null||details.trim().isEmpty()?"عملية مالية":details));
+                    box.addView(detailLine("المبلغ",fmt(ta)+" ريال"));
+                    box.addView(detailLine("التاريخ والوقت",tdate==null?"":tdate));
+                    box.addView(detailLine("الرصيد بعد العملية",balanceText(after)));
+
+                    tc.close();
+                    new AlertDialog.Builder(this).setTitle("بيانات العملية كاملة").setView(box)
+                        .setPositiveButton("إغلاق",null).show();
+                    return;
+                }
+                tc.close();
+            }
+
+            new AlertDialog.Builder(this).setTitle("بيانات الحركة")
+                .setMessage(title+"\nالمبلغ: "+fmt(amount)+" ريال\nالتاريخ والوقت: "+date)
+                .setPositiveButton("إغلاق",null).show();
+        }catch(Exception e){
+            new AlertDialog.Builder(this).setTitle("بيانات الحركة")
+                .setMessage("تعذر عرض كل تفاصيل هذه الحركة.")
+                .setPositiveButton("إغلاق",null).show();
+        }
+    }
+
+    TextView detailLine(String label,String value){
+        TextView v=tv(label+": "+(value==null?"":value),11);
+        v.setBackground(outline(Color.rgb(248,250,248),7));
+        v.setMaxLines(3);v.setEllipsize(null);
+        v.setPadding(dp(6),dp(2),dp(6),dp(2));
+        return v;
     }
 
     static class DB extends SQLiteOpenHelper{
@@ -1115,8 +1265,35 @@ public class MainActivity extends Activity {
                 "SELECT kind,ref,title,amount,date,sort_id FROM ("+
                 "SELECT 1 AS kind,no AS ref,'فاتورة '+no+' • '+CASE WHEN customer IS NULL OR customer='' THEN 'نقدي' ELSE customer END AS title,total AS amount,date,id AS sort_id FROM invoices "+
                 "UNION ALL "+
-                "SELECT 2 AS kind,'' AS ref,CASE WHEN details IS NULL OR details='' THEN 'عملية مالية' ELSE details END || ' • ' || CASE WHEN c.name IS NULL THEN '' ELSE c.name END AS title,amount,date,id AS sort_id FROM transactions t LEFT JOIN customers c ON c.id=t.customer_id WHERE details NOT LIKE 'فاتورة مبيعات رقم %'"+
+                "SELECT 2 AS kind,CAST(t.id AS TEXT) AS ref,CASE WHEN details IS NULL OR details='' THEN 'عملية مالية' ELSE details END || ' • ' || CASE WHEN c.name IS NULL THEN '' ELSE c.name END AS title,amount,date,id AS sort_id FROM transactions t LEFT JOIN customers c ON c.id=t.customer_id WHERE details NOT LIKE 'فاتورة مبيعات رقم %'"+
                 ") ORDER BY datetime(date) DESC, sort_id DESC LIMIT 200",null);
+        }
+        long transactionIdForInvoice(String no){
+            Cursor c=getReadableDatabase().rawQuery("SELECT id FROM transactions WHERE details=? ORDER BY id DESC LIMIT 1",new String[]{"فاتورة مبيعات رقم "+no});
+            long x=c.moveToFirst()?c.getLong(0):-1;c.close();return x;
+        }
+        double balanceAfterTransaction(long tid){
+            Cursor c=getReadableDatabase().rawQuery("SELECT customer_id,type,amount FROM transactions WHERE id=?",new String[]{String.valueOf(tid)});
+            if(!c.moveToFirst()){c.close();return 0;}
+            long cid=c.getLong(0);int type=c.getInt(1);double amount=c.getDouble(2);c.close();
+            double current=balance(cid);
+            // الحساب الحالي = الرصيد بعد الحركة. نعيد طرح/إضافة الحركات الأحدث حتى لحظة العملية.
+            Cursor newer=getReadableDatabase().rawQuery("SELECT type,amount FROM transactions WHERE customer_id=? AND id>?",new String[]{String.valueOf(cid),String.valueOf(tid)});
+            while(newer.moveToNext()) current-=(newer.getInt(0)==1?newer.getDouble(1):-newer.getDouble(1));
+            newer.close();
+            return current;
+        }
+        String customerNameById(long id){
+            Cursor c=getReadableDatabase().rawQuery("SELECT name FROM customers WHERE id=?",new String[]{String.valueOf(id)});
+            String x=c.moveToFirst()?c.getString(0):"";c.close();return x;
+        }
+        double invoicePaid(long id){
+            Cursor c=getReadableDatabase().rawQuery("SELECT COALESCE(paid,0) FROM invoices WHERE id=?",new String[]{String.valueOf(id)});
+            double x=c.moveToFirst()?c.getDouble(0):0;c.close();return x;
+        }
+        String invoiceDate(long id){
+            Cursor c=getReadableDatabase().rawQuery("SELECT COALESCE(date,'') FROM invoices WHERE id=?",new String[]{String.valueOf(id)});
+            String x=c.moveToFirst()?c.getString(0):"";c.close();return x;
         }
         int invoiceCount(){Cursor c=getReadableDatabase().rawQuery("SELECT COUNT(*) FROM invoices",null);int x=c.moveToFirst()?c.getInt(0):0;c.close();return x;}
         int customerCount(){Cursor c=getReadableDatabase().rawQuery("SELECT COUNT(*) FROM customers",null);int x=c.moveToFirst()?c.getInt(0):0;c.close();return x;}
