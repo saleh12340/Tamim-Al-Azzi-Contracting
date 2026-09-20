@@ -338,7 +338,7 @@ public class MainActivity extends Activity {
         draftActions.addView(restoreDraft,new LinearLayout.LayoutParams(0,dp(34),1));
         content.addView(draftActions,new LinearLayout.LayoutParams(-1,dp(38))); addSpace(4);
         saveDraft.setOnClickListener(v->saveInvoiceDraft(no.getText().toString(),customer.getText().toString(),paid.getText().toString(),lines));
-        restoreDraft.setOnClickListener(v->restoreInvoiceDraft(no,customer,paid,lines,()->{redraw.run();}));
+        
                 TextView customerBalance=tv("رصيد العميل: 0",11);
         customerBalance.setTextColor(GREEN);customerBalance.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
         customerBalance.setBackground(outline(Color.rgb(241,247,242),8));
@@ -371,6 +371,7 @@ public class MainActivity extends Activity {
             remainingLabel.setText("المتبقي: "+fmt(remaining)+" ريال"); updateCustomerBalance.run();
         };
 
+        restoreDraft.setOnClickListener(v->restoreInvoiceDraft(no,customer,paid,lines,redraw));
         add.setOnClickListener(v->{
             try{
                 double t=Double.parseDouble(total.getText().toString().trim());
