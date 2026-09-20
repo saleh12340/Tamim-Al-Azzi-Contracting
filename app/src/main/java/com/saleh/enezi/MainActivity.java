@@ -12,6 +12,8 @@ import android.text.Layout;
 import android.text.TextPaint;
 import android.text.StaticLayout;
 import android.text.TextUtils;
+import android.text.InputType;
+import android.text.method.DigitsKeyListener;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
@@ -50,6 +52,16 @@ public class MainActivity extends Activity {
         db=new DB(this); home();
     }
 
+    void confirmExit(){
+        new AlertDialog.Builder(this)
+            .setTitle("تأكيد الخروج")
+            .setMessage("هل تريد الخروج من التطبيق؟")
+            .setNegativeButton("إلغاء",null)
+            .setPositiveButton("خروج",(d,w)->finish())
+            .show();
+    }
+    @Override public void onBackPressed(){ confirmExit(); }
+
     GradientDrawable rounded(int color,float radius){ GradientDrawable g=new GradientDrawable(); g.setColor(color); g.setCornerRadius(radius); return g; }
     GradientDrawable outlined(int color,int stroke,float radius){ GradientDrawable g=rounded(color,radius); g.setStroke(stroke,Color.rgb(224,230,225)); return g; }
     float fitText(float z){return Math.max(10f,Math.min(z,16f));}
@@ -70,6 +82,19 @@ public class MainActivity extends Activity {
         e.setTextColor(TEXT); e.setHintTextColor(MUTED); e.setPadding(dp(7),dp(2),dp(7),dp(2)); e.setBackground(outlined(CARD,1,10)); e.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL); e.setLayoutDirection(View.LAYOUT_DIRECTION_RTL); e.setTextDirection(View.TEXT_DIRECTION_RTL);
         e.setSelectAllOnFocus(true); e.setOnClickListener(v -> e.selectAll());
         e.setOnFocusChangeListener((v,has)->{ if(has) e.postDelayed(() -> { e.selectAll(); },60); });
+        return e;
+    }
+    EditText numberField(String h){
+        EditText e=field(h);
+        e.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        e.setRawInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        e.setKeyListener(DigitsKeyListener.getInstance("0123456789."));
+        return e;
+    }
+    EditText phoneField(String h){
+        EditText e=field(h);
+        e.setInputType(InputType.TYPE_CLASS_PHONE);
+        e.setRawInputType(InputType.TYPE_CLASS_PHONE);
         return e;
     }
     void addField(EditText e){content.addView(e,new LinearLayout.LayoutParams(-1,dp(38))); addSpace(2);}
@@ -205,8 +230,8 @@ public class MainActivity extends Activity {
         LinearLayout line=new LinearLayout(this);
         line.setOrientation(LinearLayout.HORIZONTAL);line.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
 
-        EditText total=field("الإجمالي");
-        EditText qty=field("الكمية");
+        EditText total=numberField("الإجمالي");
+        EditText qty=numberField("الكمية");
         EditText item=field("اسم الصنف / التفاصيل");
         total.setInputType(2|8192);qty.setInputType(2|8192);qty.setText("1");
 
@@ -565,7 +590,7 @@ public class MainActivity extends Activity {
         addBox.setPadding(dp(12),dp(10),dp(12),dp(10)); addBox.setBackground(outlined(CARD,1,16));
         TextView addTitle=tv("إضافة عميل جديد",17); addTitle.setTextColor(GREEN); addTitle.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
         addBox.addView(addTitle,new LinearLayout.LayoutParams(-1,dp(38)));
-        EditText name=field("اسم العميل"), phone=field("رقم الهاتف");
+        EditText name=field("اسم العميل"), phone=phoneField("رقم الهاتف");
         customerNameInput=name; customerPhoneInput=phone;
         addBox.addView(name,new LinearLayout.LayoutParams(-1,dp(36)));
         addBox.addView(new Space(this),new LinearLayout.LayoutParams(1,dp(7)));
@@ -611,7 +636,7 @@ public class MainActivity extends Activity {
         TextView hint=tv("اضغط على العميل أو أي عملية لإظهار الخيارات. يمكن تحديد عدة عمليات.",11);hint.setTextColor(MUTED);hint.setGravity(Gravity.CENTER);
         summary.addView(hint,new LinearLayout.LayoutParams(-1,dp(30)));addCard(summary,84);
 
-        EditText amount=field("المبلغ"),details=field("التفاصيل");addField(amount);addField(details);
+        EditText amount=numberField("المبلغ"),details=field("التفاصيل");addField(amount);addField(details);
         LinearLayout acts=new LinearLayout(this);acts.setOrientation(LinearLayout.HORIZONTAL);
         Button debit=button("عليه"),credit=button("له / دفعة");debit.setTextColor(Color.RED);credit.setTextColor(GREEN);
         acts.addView(debit,new LinearLayout.LayoutParams(0,dp(40),1));acts.addView(credit,new LinearLayout.LayoutParams(0,dp(40),1));content.addView(acts);addSpace(6);
@@ -772,7 +797,7 @@ public class MainActivity extends Activity {
 
     void inventory(){
         base("المخزون");section("إضافة صنف");
-        EditText name=field("اسم الصنف");EditText qty=field("الكمية");EditText min=field("الحد الأدنى");addField(name);addField(qty);addField(min);
+        EditText name=field("اسم الصنف");EditText qty=numberField("الكمية");EditText min=field("الحد الأدنى");addField(name);addField(qty);addField(min);
         Button add=button("＋ حفظ الصنف");add.setTextColor(Color.WHITE);add.setBackgroundColor(GREEN);content.addView(add,new LinearLayout.LayoutParams(-1,dp(38)));addSpace(8);
         LinearLayout list=new LinearLayout(this);list.setOrientation(LinearLayout.VERTICAL);content.addView(list);
         Runnable refresh=()->{list.removeAllViews();Cursor c=db.items();while(c.moveToNext()){double q=c.getDouble(2),m=c.getDouble(3);TextView r=tv(c.getString(1)+"\nالكمية: "+fmt(q)+"   •   الحد الأدنى: "+fmt(m)+(q<=m?"   ⚠ منخفض":""),
