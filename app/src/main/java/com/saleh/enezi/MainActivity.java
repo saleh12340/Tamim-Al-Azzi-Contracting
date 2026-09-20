@@ -90,7 +90,8 @@ public class MainActivity extends Activity {
         if(Build.VERSION.SDK_INT>=23 && checkSelfPermission("android.permission.READ_CONTACTS")!=PackageManager.PERMISSION_GRANTED){ requestPermissions(new String[]{"android.permission.READ_CONTACTS"},REQ_CONTACTS); return; }
         try{ Intent i=new Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI); startActivityForResult(i,PICK_CONTACT); }catch(Exception e){ Toast.makeText(this,"تعذر فتح جهات الاتصال",Toast.LENGTH_SHORT).show(); }
     }
-    // Permission handling is implemented below for contacts and Bluetooth printing.\n    @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){
+    // Permission handling is implemented below for contacts and Bluetooth printing.
+    @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){
         super.onRequestPermissionsResult(requestCode,permissions,grantResults);
         if(requestCode==REQ_CONTACTS){
             if(grantResults.length>0&&grantResults[0]==PackageManager.PERMISSION_GRANTED)importContact();
