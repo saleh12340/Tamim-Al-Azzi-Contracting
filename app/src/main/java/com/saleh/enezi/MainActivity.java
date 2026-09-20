@@ -5,6 +5,7 @@ import android.os.*;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.Rect;
+import android.graphics.drawable.GradientDrawable;
 import android.content.*;
 import android.database.Cursor;
 import android.database.sqlite.*;
@@ -27,6 +28,8 @@ public class MainActivity extends Activity {
         db=new DB(this); home();
     }
 
+    GradientDrawable rounded(int color,float radius){ GradientDrawable g=new GradientDrawable(); g.setColor(color); g.setCornerRadius(radius); return g; }
+    GradientDrawable outlined(int color,int stroke,float radius){ GradientDrawable g=rounded(color,radius); g.setStroke(stroke,Color.rgb(224,230,225)); return g; }
     TextView tv(String s,float z){
         TextView v=new TextView(this); v.setText(s); v.setTextSize(z); v.setTextColor(TEXT);
         v.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL); v.setPadding(16,10,16,10);
@@ -34,12 +37,12 @@ public class MainActivity extends Activity {
     }
     Button button(String s){
         Button b=new Button(this); b.setText(s); b.setTextSize(14); b.setAllCaps(false); b.setMinHeight(0);
-        b.setMinimumHeight(0); b.setPadding(12,4,12,4); b.setGravity(Gravity.CENTER);
+        b.setMinimumHeight(0); b.setPadding(12,4,12,4); b.setGravity(Gravity.CENTER); b.setStateListAnimator(null);
         b.setLayoutDirection(View.LAYOUT_DIRECTION_RTL); return b;
     }
     EditText field(String h){
         EditText e=new EditText(this); e.setHint(h); e.setTextSize(textSize); e.setSingleLine(true);
-        e.setTextColor(TEXT); e.setHintTextColor(MUTED); e.setPadding(14,7,14,7); e.setBackgroundColor(Color.WHITE); e.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
+        e.setTextColor(TEXT); e.setHintTextColor(MUTED); e.setPadding(14,7,14,7); e.setBackground(outlined(CARD,1,14)); e.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
         e.setBackgroundColor(CARD); e.setLayoutDirection(View.LAYOUT_DIRECTION_RTL); e.setTextDirection(View.TEXT_DIRECTION_RTL);
         e.setSelectAllOnFocus(true); e.setOnClickListener(v -> e.selectAll());
         e.setOnFocusChangeListener((v,has)->{ if(has) e.postDelayed(() -> { e.selectAll(); },60); });
@@ -52,7 +55,7 @@ public class MainActivity extends Activity {
     void base(String title){
         root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(BG);
         root.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-        LinearLayout bar=new LinearLayout(this); bar.setGravity(Gravity.CENTER_VERTICAL); bar.setPadding(12,4,12,4); bar.setBackgroundColor(GREEN);
+        LinearLayout bar=new LinearLayout(this); bar.setGravity(Gravity.CENTER_VERTICAL); bar.setPadding(12,4,12,4); bar.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{GREEN,DARK}));
         LinearLayout brand=new LinearLayout(this); brand.setGravity(Gravity.CENTER_VERTICAL); brand.setOrientation(LinearLayout.HORIZONTAL);
         TextView mark=tv("🛒",24); mark.setTextColor(Color.WHITE); mark.setGravity(Gravity.CENTER); brand.addView(mark,new LinearLayout.LayoutParams(42,58));
         TextView logo=tv("بقالة العزي",19); logo.setTextColor(Color.WHITE); logo.setTypeface(Typeface.DEFAULT,Typeface.BOLD); logo.setGravity(Gravity.CENTER_VERTICAL|Gravity.RIGHT);
@@ -61,10 +64,10 @@ public class MainActivity extends Activity {
         root.addView(bar);
 
         ScrollView sv=new ScrollView(this); sv.setFillViewport(true); sv.setClipToPadding(false);
-        content=new LinearLayout(this); content.setOrientation(LinearLayout.VERTICAL); content.setPadding(14,12,14,18); content.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        content=new LinearLayout(this); content.setOrientation(LinearLayout.VERTICAL); content.setPadding(12,12,12,18); content.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
         sv.addView(content); root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));
 
-        bottom=new LinearLayout(this); bottom.setGravity(Gravity.CENTER); bottom.setBackgroundColor(CARD); bottom.setPadding(4,3,4,3);
+        bottom=new LinearLayout(this); bottom.setGravity(Gravity.CENTER); bottom.setBackground(outlined(CARD,1,18)); bottom.setPadding(4,3,4,3); bottom.setElevation(6);
         String[] ns={"الرئيسية","الحسابات","الفواتير","المخزون","التقارير"};
         for(String n:ns){Button b=button(n); b.setTextSize(11); b.setTextColor(n.equals(title)||n.equals("الرئيسية")&&title.equals("الرئيسية")?GREEN:MUTED); b.setBackgroundColor(Color.TRANSPARENT); b.setOnClickListener(v->navigate(n)); bottom.addView(b,new LinearLayout.LayoutParams(0,58,1));}
         root.addView(bottom);
@@ -78,22 +81,22 @@ public class MainActivity extends Activity {
     void hideKeyboard(){View v=getCurrentFocus();if(v!=null){((InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(v.getWindowToken(),0);v.clearFocus();}}
 
     TextView cardTitle(String title,String sub){
-        LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);c.setPadding(14,8,14,8);c.setBackgroundColor(CARD);
+        LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);c.setPadding(14,8,14,8);c.setBackground(outlined(CARD,1,16));c.setElevation(2);
         TextView a=tv(title,17);a.setTextColor(GREEN);a.setTypeface(Typeface.DEFAULT,Typeface.BOLD);c.addView(a);
-        TextView b=tv(sub,12);b.setTextColor(MUTED);c.addView(b);content.addView(c,new LinearLayout.LayoutParams(-1,72));return a;
+        TextView b=tv(sub,12);b.setTextColor(MUTED);c.addView(b);LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,72); cp.setMargins(0,0,0,7); content.addView(c,cp);return a;
     }
     void addAction(String a,String sub,View.OnClickListener l){
-        LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);c.setPadding(12,5,12,5);c.setBackgroundColor(CARD);
+        LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);c.setPadding(12,5,12,5);c.setBackground(outlined(CARD,1,16));c.setElevation(2);
         Button b=button(a);b.setTextSize(16);b.setTextColor(TEXT);b.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);b.setOnClickListener(l);c.addView(b,new LinearLayout.LayoutParams(-1,48));
-        TextView s=tv(sub,12);s.setTextColor(MUTED);c.addView(s,new LinearLayout.LayoutParams(-1,30));content.addView(c,new LinearLayout.LayoutParams(-1,82));addSpace(7);
+        TextView s=tv(sub,12);s.setTextColor(MUTED);c.addView(s,new LinearLayout.LayoutParams(-1,30));LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(-1,82); ap.setMargins(0,0,0,7); content.addView(c,ap);
     }
 
     void home(){
         base("الرئيسية");
-        LinearLayout hero=new LinearLayout(this);hero.setOrientation(LinearLayout.VERTICAL);hero.setPadding(18,16,18,16);hero.setBackgroundColor(GREEN);
+        LinearLayout hero=new LinearLayout(this);hero.setOrientation(LinearLayout.VERTICAL);hero.setPadding(18,16,18,16);hero.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{GREEN,DARK}));
         TextView h=tv("بقالة العزي",25);h.setTextColor(Color.WHITE);h.setTypeface(Typeface.DEFAULT,Typeface.BOLD);hero.addView(h);
         TextView s=tv("فواتير • حسابات • مخزون • تقارير\nإدارة سريعة تعمل محلياً بدون إنترنت",13);s.setTextColor(Color.WHITE);hero.addView(s);
-        content.addView(hero,new LinearLayout.LayoutParams(-1,112));addSpace(10);
+        hero.setElevation(3); LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(-1,116); hp.setMargins(0,0,0,10); content.addView(hero,hp);addSpace(10);
         section("اختصارات سريعة");
         addAction("🧾  فاتورة مبيعات جديدة","الإجمالي ← الكمية ← الصنف • حساب سعر الوحدة تلقائياً",v->invoice());
         addAction("👥  العملاء والحسابات","الرصيد، الحركات، كشف الحساب والمشاركة",v->customers());
@@ -112,7 +115,7 @@ public class MainActivity extends Activity {
         content.addView(order);addSpace(8);
         TextView hint=tv("الإدخال: الإجمالي ثم الكمية ثم اسم الصنف",12);hint.setTextColor(MUTED);content.addView(hint);
         Button add=button("＋ إضافة الصنف");add.setTextColor(Color.WHITE);add.setBackgroundColor(GREEN);content.addView(add,new LinearLayout.LayoutParams(-1,48));addSpace(7);
-        TextView total=tv("الإجمالي  0 ريال",23);total.setTextColor(GREEN);total.setTypeface(Typeface.DEFAULT,Typeface.BOLD);total.setGravity(Gravity.CENTER);total.setBackgroundColor(Color.rgb(255,249,226));content.addView(total,new LinearLayout.LayoutParams(-1,62));addSpace(7);
+        TextView total=tv("الإجمالي  0 ريال",24);total.setTextColor(GREEN);total.setTypeface(Typeface.DEFAULT,Typeface.BOLD);total.setGravity(Gravity.CENTER);total.setBackgroundColor(Color.rgb(255,249,226));content.addView(total,new LinearLayout.LayoutParams(-1,62));addSpace(7);
         LinearLayout rows=new LinearLayout(this);rows.setOrientation(LinearLayout.VERTICAL);content.addView(rows);final double[] sum={0};
         totalLine.setInputType(2|8192);qty.setInputType(2|8192);
         add.setOnClickListener(v->{try{String n=item.getText().toString().trim();double q=Double.parseDouble(qty.getText().toString()),t=Double.parseDouble(totalLine.getText().toString());if(n.isEmpty()||q<=0||t<0)throw new Exception();double p=t/q;unit.setText("سعر الوحدة: "+fmt(p)+" ريال");sum[0]+=t;TextView r=tv(n+"   |   "+fmt(q)+"   |   "+fmt(p)+"   |   "+fmt(t)+" ريال",14);r.setPadding(8,7,8,7);rows.addView(r);total.setText("الإجمالي  "+fmt(sum[0])+" ريال");item.setText("");qty.setText("1");totalLine.setText("");item.requestFocus(); item.selectAll();}catch(Exception e){Toast.makeText(this,"أدخل الإجمالي والكمية واسم الصنف",Toast.LENGTH_SHORT).show();}});
