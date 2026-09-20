@@ -4,6 +4,7 @@ import android.app.*;
 import android.os.*;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.Rect;
 import android.content.*;
 import android.database.Cursor;
 import android.database.sqlite.*;
