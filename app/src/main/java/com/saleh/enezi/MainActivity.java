@@ -52,31 +52,19 @@ public class MainActivity extends Activity {
     TextView section(String s){TextView v=tv(s,14);v.setTextColor(GREEN);v.setTypeface(Typeface.DEFAULT,Typeface.BOLD);v.setPadding(4,12,4,6);content.addView(v);return v;}
 
     void base(String title){
-        root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(BG);
-        root.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-        LinearLayout bar=new LinearLayout(this); bar.setGravity(Gravity.CENTER_VERTICAL); bar.setPadding(12,4,12,4); bar.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{GREEN,DARK}));
-        LinearLayout brand=new LinearLayout(this); brand.setGravity(Gravity.CENTER_VERTICAL); brand.setOrientation(LinearLayout.HORIZONTAL);
-        TextView mark=tv("🛒",24); mark.setTextColor(Color.WHITE); mark.setGravity(Gravity.CENTER); brand.addView(mark,new LinearLayout.LayoutParams(42,58));
-        TextView logo=tv("بقالة العزي",19); logo.setTextColor(Color.WHITE); logo.setTypeface(Typeface.DEFAULT,Typeface.BOLD); logo.setGravity(Gravity.CENTER_VERTICAL|Gravity.RIGHT);
-        brand.addView(logo,new LinearLayout.LayoutParams(0,58,1)); bar.addView(brand,new LinearLayout.LayoutParams(0,62,1));
-        pageTitle=tv(title,15); pageTitle.setTextColor(Color.WHITE); pageTitle.setGravity(Gravity.CENTER); bar.addView(pageTitle,new LinearLayout.LayoutParams(110,62));
-        root.addView(bar);
-
+        root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(BG); root.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        LinearLayout bar=new LinearLayout(this); bar.setGravity(Gravity.CENTER_VERTICAL); bar.setPadding(12,6,12,6); bar.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{GREEN,DARK}));
+        TextView logo=tv("بقالة العزي",20); logo.setTextColor(Color.WHITE); logo.setTypeface(Typeface.DEFAULT,Typeface.BOLD); bar.addView(logo,new LinearLayout.LayoutParams(0,64,1));
+        TextView pt=tv(title,15); pt.setTextColor(Color.WHITE); pt.setGravity(Gravity.CENTER); bar.addView(pt,new LinearLayout.LayoutParams(120,64)); root.addView(bar);
         ScrollView sv=new ScrollView(this); sv.setFillViewport(true); sv.setClipToPadding(false);
-        content=new LinearLayout(this); content.setOrientation(LinearLayout.VERTICAL); content.setPadding(12,12,12,18); content.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-        sv.addView(content); root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));
-
-        bottom=new LinearLayout(this); bottom.setGravity(Gravity.CENTER); bottom.setBackground(outlined(CARD,1,18)); bottom.setPadding(4,3,4,3); bottom.setElevation(6);
-        String[] ns={"الرئيسية","الحسابات","الفواتير","المخزون","التقارير"};
-        for(String n:ns){Button b=button(n); b.setTextSize(11); b.setTextColor(n.equals(title)||n.equals("الرئيسية")&&title.equals("الرئيسية")?GREEN:MUTED); b.setBackgroundColor(Color.TRANSPARENT); b.setOnClickListener(v->navigate(n)); bottom.addView(b,new LinearLayout.LayoutParams(0,58,1));}
-        root.addView(bottom);
-        setContentView(root);
-        root.getViewTreeObserver().addOnGlobalLayoutListener(()->{
-            Rect r=new Rect(); root.getWindowVisibleDisplayFrame(r); int diff=root.getRootView().getHeight()-r.bottom;
-            if(bottom!=null) bottom.setVisibility(diff>root.getRootView().getHeight()*0.18?View.GONE:View.VISIBLE);
-        });
+        content=new LinearLayout(this); content.setOrientation(LinearLayout.VERTICAL); content.setPadding(14,14,14,22); content.setLayoutDirection(View.LAYOUT_DIRECTION_RTL); sv.addView(content); root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));
+        bottom=new LinearLayout(this); bottom.setGravity(Gravity.CENTER); bottom.setPadding(5,5,5,5); bottom.setBackground(outlined(CARD,1,20)); bottom.setElevation(8);
+        String[] ns={"الرئيسية","العملاء","الفواتير","المخزون","التقارير"};
+        for(String n:ns){Button b=button(n); b.setTextSize(12); b.setTextColor(n.equals(title)?GREEN:MUTED); b.setBackgroundColor(Color.TRANSPARENT); b.setOnClickListener(v->navigate(n)); bottom.addView(b,new LinearLayout.LayoutParams(0,62,1));}
+        root.addView(bottom); setContentView(root);
+        root.getViewTreeObserver().addOnGlobalLayoutListener(()->{Rect rr=new Rect();root.getWindowVisibleDisplayFrame(rr);int diff=root.getRootView().getHeight()-rr.bottom;if(bottom!=null)bottom.setVisibility(diff>root.getRootView().getHeight()*0.18?View.GONE:View.VISIBLE);});
     }
-    void navigate(String n){hideKeyboard(); if(n.equals("الرئيسية"))home();else if(n.equals("الحسابات"))customers();else if(n.equals("الفواتير"))invoice();else if(n.equals("المخزون"))inventory();else reports();}
+    void navigate(String n){hideKeyboard(); if(n.equals("الرئيسية"))home();else if(n.equals("العملاء")||n.equals("الحسابات"))customers();else if(n.equals("الفواتير"))invoice();else if(n.equals("المخزون"))inventory();else reports();}
     void hideKeyboard(){View v=getCurrentFocus();if(v!=null){((InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(v.getWindowToken(),0);v.clearFocus();}}
 
     TextView cardTitle(String title,String sub){
