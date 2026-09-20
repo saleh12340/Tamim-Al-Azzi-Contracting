@@ -569,6 +569,7 @@ public class MainActivity extends Activity {
         if(p.startsWith("+"))p=p.substring(1);
         if(p.startsWith("00"))p=p.substring(2);
         if(p.startsWith("0")&&p.length()>=8)p="967"+p.substring(1);
+        else if(p.matches("\\d{9}"))p="967"+p;
         return p;
     }
     void shareWhatsAppToCustomer(String phone,String text,Uri image){
