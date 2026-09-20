@@ -509,7 +509,7 @@ public class MainActivity extends Activity {
                 String[] p=a[i].split("\t",-1);
                 if(p.length>=3)lines.add(new Line(unb64(p[0]),Double.parseDouble(p[1]),Double.parseDouble(p[2])));
             }
-            refresh.run();Toast.makeText(this,"تم استعادة الحفظ المؤقت",Toast.LENGTH_SHORT).show();
+            refreshHolder[0].run();Toast.makeText(this,"تم استعادة الحفظ المؤقت",Toast.LENGTH_SHORT).show();
         }catch(Exception e){Toast.makeText(this,"الحفظ المؤقت غير صالح",Toast.LENGTH_SHORT).show();}
     }
     void clearInvoiceDraft(){getSharedPreferences("draft",MODE_PRIVATE).edit().remove("invoice").apply();}
@@ -1036,7 +1036,7 @@ public class MainActivity extends Activity {
         for(int i=0;i<heads.length;i++){TextView h=tv(heads[i],9);h.setTextColor(GREEN);h.setTypeface(Typeface.DEFAULT,Typeface.BOLD);h.setGravity(Gravity.CENTER);h.setMaxLines(2);header.addView(h,new LinearLayout.LayoutParams(0,dp(34),hw[i]));}
         table.addView(header,new LinearLayout.LayoutParams(-1,dp(36)));
         final ArrayList<Long> selected=new ArrayList<>();
-        Runnable refresh=()->{
+        final Runnable[] refreshHolder=new Runnable[1]; Runnable refresh=()->{
             while(table.getChildCount()>1)table.removeViewAt(1);selected.clear();
             double runningAfter=db.balance(id);Cursor c=db.transactions(id);
             while(c.moveToNext()){
@@ -1341,7 +1341,7 @@ public class MainActivity extends Activity {
         TextView totalLabel=tv("إجمالي الشراء: 0 ريال",18);totalLabel.setTextColor(GREEN);totalLabel.setTypeface(Typeface.DEFAULT,Typeface.BOLD);totalLabel.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);totalLabel.setBackground(bg(Color.rgb(255,249,226),10));content.addView(totalLabel,new LinearLayout.LayoutParams(-1,dp(44)));addSpace(4);
         Button add=action("＋ إضافة الصنف إلى الفاتورة",GREEN);content.addView(add,new LinearLayout.LayoutParams(-1,dp(40)));addSpace(4);
         Button save=action("💾 حفظ فاتورة الشراء",GOLD);content.addView(save,new LinearLayout.LayoutParams(-1,dp(42)));
-        Runnable refresh=()->{list.removeAllViews();double sum=0;for(PurchaseLine pl:lines){sum+=pl.total;LinearLayout row=new LinearLayout(this);row.setOrientation(LinearLayout.HORIZONTAL);row.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);row.setGravity(Gravity.CENTER_VERTICAL);TextView n=tv(pl.name+"\\nكمية "+fmt(pl.qty)+" • تكلفة "+fmt(pl.cost)+" • بيع "+fmt(pl.sale),11);n.setMaxLines(2);n.setEllipsize(TextUtils.TruncateAt.END);Button del=button("حذف");del.setTextColor(RED);del.setOnClickListener(v->{lines.remove(pl);refresh.run();});row.addView(n,new LinearLayout.LayoutParams(0,dp(46),1));row.addView(del,new LinearLayout.LayoutParams(dp(55),dp(38)));list.addView(row,new LinearLayout.LayoutParams(-1,dp(48)));addSpaceTo(list,3);}totalLabel.setText("إجمالي الشراء: "+fmt(sum)+" ريال");};
+        Runnable refresh=()->{list.removeAllViews();double sum=0;for(PurchaseLine pl:lines){sum+=pl.total;LinearLayout row=new LinearLayout(this);row.setOrientation(LinearLayout.HORIZONTAL);row.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);row.setGravity(Gravity.CENTER_VERTICAL);TextView n=tv(pl.name+"\\nكمية "+fmt(pl.qty)+" • تكلفة "+fmt(pl.cost)+" • بيع "+fmt(pl.sale),11);n.setMaxLines(2);n.setEllipsize(TextUtils.TruncateAt.END);Button del=button("حذف");del.setTextColor(RED);del.setOnClickListener(v->{lines.remove(pl);refresh.run();});row.addView(n,new LinearLayout.LayoutParams(0,dp(46),1));row.addView(del,new LinearLayout.LayoutParams(dp(55),dp(38)));list.addView(row,new LinearLayout.LayoutParams(-1,dp(48)));addSpaceTo(list,3);}totalLabel.setText("إجمالي الشراء: "+fmt(sum)+" ريال");}; refreshHolder[0]=refresh;
         add.setOnClickListener(v->{try{String n=item.getText().toString().trim();double q=Double.parseDouble(qty.getText().toString().trim());double co=Double.parseDouble(cost.getText().toString().trim());double sa=Double.parseDouble(sale.getText().toString().trim());if(n.isEmpty()||q<=0||co<0||sa<0)throw new Exception();lines.add(new PurchaseLine(n,q,co,sa,q*co));refresh.run();item.setText("");qty.setText("1");cost.setText("");sale.setText("");item.requestFocus();}catch(Exception e){Toast.makeText(this,"أدخل بيانات الصنف بشكل صحيح",Toast.LENGTH_SHORT).show();}});
         save.setOnClickListener(v->{try{if(lines.isEmpty()){Toast.makeText(this,"أضف صنفاً واحداً على الأقل",Toast.LENGTH_SHORT).show();return;}String sn=supplier.getText().toString().trim();if(sn.isEmpty())sn="مورد نقدي";double sum=0;for(PurchaseLine pl:lines)sum+=pl.total;db.supplier(sn,"");long pid=db.addPurchase(String.valueOf(no.getText()),sn,sum,db.now());db.replacePurchaseLines(pid,lines);db.updateStockFromPurchase(lines);Toast.makeText(this,"تم حفظ فاتورة الشراء وتحديث المخزون",Toast.LENGTH_LONG).show();purchaseInvoices();}catch(Exception e){Toast.makeText(this,"تعذر حفظ فاتورة الشراء",Toast.LENGTH_LONG).show();}});
         refresh.run();
