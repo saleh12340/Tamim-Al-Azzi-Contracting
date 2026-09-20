@@ -326,6 +326,11 @@ public class MainActivity extends Activity {
         paidRow.addView(paidTitle,new LinearLayout.LayoutParams(0,dp(38),1));
         paidRow.addView(paid,new LinearLayout.LayoutParams(dp(125),dp(38)));
         invoiceBox.addView(paidRow,new LinearLayout.LayoutParams(-1,dp(40)));
+        LinearLayout payModes=new LinearLayout(this);payModes.setOrientation(LinearLayout.HORIZONTAL);payModes.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        Button cashMode=button("نقدي"), creditMode=button("آجل");
+        cashMode.setTextColor(GREEN);creditMode.setTextColor(MUTED);
+        payModes.addView(cashMode,new LinearLayout.LayoutParams(0,dp(34),1));payModes.addView(creditMode,new LinearLayout.LayoutParams(0,dp(34),1));
+        invoiceBox.addView(payModes,new LinearLayout.LayoutParams(-1,dp(36)));
         TextView remainingLabel=tv("المتبقي: 0 ريال",12);remainingLabel.setTextColor(MUTED);remainingLabel.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);remainingLabel.setPadding(dp(10),0,dp(10),0);
         invoiceBox.addView(remainingLabel,new LinearLayout.LayoutParams(-1,dp(28)));
         content.addView(invoiceBox,new LinearLayout.LayoutParams(-1,-2)); space(3);
@@ -340,6 +345,8 @@ public class MainActivity extends Activity {
         TextView paymentMode=tv("نوع السداد: نقدي — ويمكن ترك الباقي آجلًا",10);
         paymentMode.setTextColor(MUTED);paymentMode.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
         content.addView(paymentMode,new LinearLayout.LayoutParams(-1,dp(26)));addSpace(2);
+        cashMode.setOnClickListener(v->{paid.setText(fmt(totalOf(lines)));});
+        creditMode.setOnClickListener(v->{paid.setText("0");});
         Runnable updateCustomerBalance=()->{
             String cn=customer.getText().toString().trim();
             double cb=cn.isEmpty()?0:db.balanceByName(cn);
